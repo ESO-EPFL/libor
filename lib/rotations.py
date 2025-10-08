@@ -117,6 +117,9 @@ def skew(u):
     """
     Skew symmetric matrix of a vector
     """
+    assert u.shape == (3,1) or u.shape == (3,)
+    u = u.flatten()
+
     return np.array([[   0, -u[2],  u[1]],
                      [ u[2],     0, -u[0]],
                      [-u[1],  u[0],     0]])
@@ -124,6 +127,9 @@ def skewT(u):
     """
     Transpose of skew symmetric matrix of a vector
     """
+    assert u.shape == (3,1) or u.shape == (3,)
+    u = u.flatten()
+
     return np.array([[   0,  u[2], -u[1]],
                      [-u[2],     0,  u[0]],
                      [ u[1], -u[0],     0]])
@@ -133,14 +139,9 @@ def rpy_from_R_ned2b(R, as_degrees=False):
     Extract roll, pitch, yaw from rotation matrix from ned to body, SO eq. 3.21
     """
     if abs(R[2,0]) != 1:
-        r = np.arctan2(R[2,1], R[2,2])
-        p = -np.arcsin(R[2,0])
-        y = np.arctan2(R[1,0], R[0,0])
-    else:
-        #Gimbal lock
-        p = np.pi/2 if R[2,0] == -1 else -np.pi/2   
-        r = 0 #can set r to anything, here 0
-        y = np.arctan2(-R[0,1], R[1,1]) if R[2,0] == -1 else np.arctan2(R[0,1], -R[1,1])
+        r = np.arctan2(R[1,2], R[2,2])
+        p = -np.arcsin(R[0,2])
+        y = np.arctan2(R[0,1], R[0,0])
 
     if as_degrees:
         return np.array([r, p, y])*180/np.pi

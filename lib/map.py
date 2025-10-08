@@ -25,43 +25,54 @@ class Trajectory:
     def __init__(self, t, lla, rpy, tp):
         self.t = t
 
-        self.lla = lla.reshape(-1,3)
+        self.lla = lla.T
         self.ecef = np.dstack(lla2ecefTransformer.transform(lla[:, 0], lla[:, 1], lla[:, 2],radians=True))[0]
         self.xyz = tp.R_ecef2enu @ (self.ecef - tp.xyz0).T
 
-        R_nedi2b = []
-        R_nedi2e = []
+        R_ned2b_list = []
+        R_ned2e_list = []
 
         for i in range(len(t)):
-            R_nedi2b.append(R_ned2b(rpy[i,0], rpy[i,1], rpy[i,2]))
-            R_nedi2e.append(R_ned2e(lla[i,0], lla[i,1]))
+            R_ned2b_list.append(R_ned2b(rpy[i,0], rpy[i,1], rpy[i,2]))
+            R_ned2e_list.append(R_ned2e(lla[i,0], lla[i,1]))
 
-        self.R_nedi2b = R.from_matrix(np.array(R_nedi2b))
-        self.R_nedi2e = R.from_matrix(np.array(R_nedi2e))
+        self.R_ned2b = R.from_matrix(np.array(R_ned2b_list))
+        self.R_ned2e = R.from_matrix(np.array(R_ned2e_list))
 
-        self.slerp_nedi2b = Slerp(t, self.R_nedi2b)
-        self.slerp_nedi2e = Slerp(t, self.R_nedi2e)
+        self.slerp_ned2b = Slerp(t, self.R_ned2b)
+        self.slerp_ned2e = Slerp(t, self.R_ned2e)
         
     def interpolate(self, timestamps, customRPY = True):
-        xyz_interp = np.empty((3, len(timestamps)))
-        lla_interp = np.empty((len(timestamps),3))
+        xyz_interp = np.empty((len(timestamps), 3))
+        lla_interp = np.empty((len(timestamps), 3))
         for i in range(3):
-            xyz_interp[i,:] = np.interp(timestamps, self.t, self.xyz[i,:])
-            lla_interp[i,:] = np.interp(timestamps, self.t, self.lla[i,:])
+            xyz_interp[:,i] = np.interp(timestamps, self.t, self.xyz[i,:])
+            lla_interp[:,i] = np.interp(timestamps, self.t, self.lla[i,:])
 
-        R_nedi2b_interp = self.slerp_nedi2b(timestamps)
-        R_nedi2e_interp = self.slerp_nedi2e(timestamps).as_matrix()
+        R_ned2b_interp = self.slerp_ned2b(timestamps)
+        R_ned2e_interp = self.slerp_ned2e(timestamps).as_matrix()
 
         if customRPY:
             rpy_interp = np.empty((len(timestamps),3))
             for i in range(len(timestamps)):
-                rpy_interp[i,:] = rpy_from_R_ned2b(R_nedi2b_interp[i].as_matrix(), as_degrees=True)
+                rpy_interp[i,:] = rpy_from_R_ned2b(R_ned2b_interp[i].as_matrix(), as_degrees=False)
         else:
-            rpy_interp = R_nedi2b_interp.as_euler('xyz', degrees=True)
+            rpy_interp = R_ned2b_interp.as_euler('xyz', degrees=False).T
 
+        poses = []
+        for i in range(len(timestamps)):
+            poses.append(Pose(timestamps[i], lla_interp[i,:], xyz_interp[i,:], rpy_interp[i,:], R_ned2e_interp[i]))
 
-        return xyz_interp, R_nedi2b_interp, R_nedi2e_interp, rpy_interp
+        return poses
     
+class Pose:
+    def __init__(self, t, lla, xyz, rpy, R_ned2e):
+        self.t = t
+        self.lla = lla
+        self.xyz = xyz
+        self.R_ned2e = R_ned2e
+        self.rpy = rpy
+
 def loadSBET(path):
     """
     Decodes an APPLANIX SNV/SBET file.
