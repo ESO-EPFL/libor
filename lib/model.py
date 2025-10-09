@@ -48,6 +48,7 @@ class Correspondence:
 
     def computeA(self):
         self.A = self.R_b2m_i @ self.U_i - self.R_b2m_j @ self.U_j
+        assert self.A.shape == (3,3)
 
     def computeB(self, theta):
 
@@ -75,6 +76,7 @@ class Correspondence:
         B7 = -dR_dy_j @ s_j
 
         self.B = self.R_e2enu @ np.hstack((B0, B1, B2, B3, B4, B5, B6, B7))
+        assert self.B.shape == (3,12)
 
     def compute_w(self, theta):
         borVector_i = self.U_i @ theta
@@ -82,29 +84,71 @@ class Correspondence:
 
         self.p_i = self.l_hat[0:3].reshape(3,1) + self.R_b2m_i @ (self.u_i + borVector_i + self.leverArm)
         self.p_j = self.l_hat[6:9].reshape(3,1) + self.R_b2m_j @ (self.u_j + borVector_j + self.leverArm)
-
-        print("p_i:", self.p_i)
-        print("p_j:", self.p_j)
-
+        
         self.w = self.p_i - self.p_j
+        assert self.w.shape == (3,1)
 
-    def computeP(self, sigma_xy, sigma_z, sigma_rp, sigma_y):
-        #TODO Put in constructor
-        self.P = np.diag([sigma_xy**2, sigma_xy**2, sigma_z**2, sigma_rp**2, sigma_rp**2, sigma_y**2,
-                          sigma_xy**2, sigma_xy**2, sigma_z**2, sigma_rp**2, sigma_rp**2, sigma_y**2])
-        
-    # def computeResStats(self):
-    #     dist = np.linalg.norm(self.w)
+class Model:
+    def __init__(self, rawCor, trj, mount, R_e2enu, sigmas):
+        poses_i = trj.interpolate(rawCor[:, 0], customRPY=True)
+        poses_j = trj.interpolate(rawCor[:, 1], customRPY=True)
 
-    #     mean = np.mean(dist)
-    #     median = np.median(dist)
-    #     q25 = np.percentile(dist, 25)
-    #     q75 = np.percentile(dist, 75)
-    #     std = np.std(dist)
-    #     max = np.max(dist)
-        
-    #     plt.hist(dist, bins=50)
-    #     plt.title(f"Residual: mean={mean:.3f}, q25={q25:.3f}, q50={median:.3f}, q75={q75:.3f}, std={std:.3f}, max={max:.3f} (m)")
-    #     plt.xlabel("Distance (m)")
-    #     plt.ylabel("Count")
-    #     plt.show()
+        self.corSet = []
+        for k in range(len(rawCor)):
+            self.corSet.append(Correspondence(rawCor[k], poses_i[k], poses_j[k], mount, R_e2enu))
+            self.corSet[k].compute_l_hat()
+            self.corSet[k].compute_Rb2m()
+            self.corSet[k].computeA()
+            self.corSet[k].computeB(mount['bor'])
+            self.corSet[k].compute_w(mount['bor'])
+
+        self.sigmas = sigmas
+
+    def buildP(self):
+        Pk = np.diag([
+                1/self.sigmas['xy']**2,
+                1/self.sigmas['xy']**2,
+                1/self.sigmas['z']**2,
+                1/self.sigmas['rp']**2,
+                1/self.sigmas['rp']**2,
+                1/self.sigmas['y']**2,
+                1/self.sigmas['xy']**2,
+                1/self.sigmas['xy']**2,
+                1/self.sigmas['z']**2,
+                1/self.sigmas['rp']**2,
+                1/self.sigmas['rp']**2,
+                1/self.sigmas['y']**2
+            ])
+         
+        assert Pk.shape == (12,12)
+        n = len(self.corSet)
+        self.P = np.zeros((12*n, 12*n))
+        for k in range(n):
+            self.P[12*k:12*(k+1), 12*k:12*(k+1)] = Pk
+    
+    def plotP(self):
+        plt.imshow(self.P, cmap='hot', interpolation='nearest')
+        plt.colorbar()
+        plt.title('Covariance Matrix P')
+        plt.xlabel(f"Size: {self.P.shape[0]} x {self.P.shape[1]}")
+        plt.show()
+        #show only one Pk
+        Pk = self.P[0:12, 0:12]
+        plt.imshow(Pk, cmap='hot', interpolation='nearest')
+        plt.colorbar()
+        plt.title('Covariance Matrix Pk')
+        plt.xlabel(f"Size: {Pk.shape[0]} x {Pk.shape[1]}")
+        plt.show()
+
+    def plotResiduals(self):
+        res = np.hstack([c.w for c in self.corSet])
+        print("Current residuals stats:")
+        print(f"Mean residual: {np.mean(np.linalg.norm(res, axis=0))} m")
+        print(f"Median residual: {np.median(np.linalg.norm(res, axis=0))} m")
+        print(f"Max residual: {np.max(np.linalg.norm(res, axis=0))} m") 
+        plt.hist(np.linalg.norm(res, axis=0), bins=50)
+        plt.xlabel('Residual norm (m)')
+        plt.ylabel('Count')
+        plt.title('Histogram of correspondence residuals')
+        plt.grid()
+        plt.show()

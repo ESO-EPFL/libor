@@ -22,9 +22,16 @@ class TangentPlane:
         self.R_ecef2enu = T_enu_ned() @ R_ned2e(lat, lon).T
 
 class Trajectory:
-    def __init__(self, t, lla, rpy, tp):
+    def __init__(self, t, lla, rpy, tp, t_span=None):
+        if t_span is None:
+            t_span = [t[0], t[-1]]
+        
+        mask = (t >= t_span[0]) & (t <= t_span[1])
+        t = t[mask]
+        lla = lla[mask,:]
+        rpy = rpy[mask,:]
+        
         self.t = t
-
         self.lla = lla.T
         self.ecef = np.dstack(lla2ecefTransformer.transform(lla[:, 0], lla[:, 1], lla[:, 2],radians=True))[0]
         self.xyz = tp.R_ecef2enu @ (self.ecef - tp.xyz0).T

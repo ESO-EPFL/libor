@@ -6,7 +6,6 @@ c = np.cos
 s = np.sin
 
 #mapping frame m refers to local enu tangent plane with specified, fixed, origin.
-
 def R1(r):
     """
     Rotation matrix around the x-axis, r in radians
@@ -123,6 +122,7 @@ def skew(u):
     return np.array([[   0, -u[2],  u[1]],
                      [ u[2],     0, -u[0]],
                      [-u[1],  u[0],     0]])
+
 def skewT(u):
     """
     Transpose of skew symmetric matrix of a vector
@@ -142,6 +142,7 @@ def rpy_from_R_ned2b(R, as_degrees=False):
         r = np.arctan2(R[1,2], R[2,2])
         p = -np.arcsin(R[0,2])
         y = np.arctan2(R[0,1], R[0,0])
+    #TODO: Add gimbal lock case support
 
     if as_degrees:
         return np.array([r, p, y])*180/np.pi
