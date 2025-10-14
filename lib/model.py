@@ -1,7 +1,9 @@
 import numpy as np
 from lib.rotations import *
 from matplotlib import pyplot as plt
+from scipy.linalg import cho_factor, cho_solve
 
+np.set_printoptions(precision=5, suppress=True)
 
 class Correspondence:
     def __init__(self, corr, pose_i, pose_j, mount, R_e2enu):
@@ -89,7 +91,7 @@ class Correspondence:
         assert self.w.shape == (3,1)
 
 class Model:
-    def __init__(self, rawCor, trj, mount, R_e2enu, sigmas):
+    def __init__(self, rawCor, trj, mount, R_e2enu, sigmas, initGuess=None):
         poses_i = trj.interpolate(rawCor[:, 0], customRPY=True)
         poses_j = trj.interpolate(rawCor[:, 1], customRPY=True)
 
@@ -102,7 +104,29 @@ class Model:
             self.corSet[k].computeB(mount['bor'])
             self.corSet[k].compute_w(mount['bor'])
 
+        self.n = len(self.corSet)
         self.sigmas = sigmas
+        self.buildP()
+        self.buildW()
+
+        self.A = np.empty((3*len(self.corSet), 3))
+        self.B = np.empty((3*len(self.corSet), 12*len(self.corSet)))
+        self.w = np.empty((3*len(self.corSet), 1))
+
+        if initGuess is not None:
+            self.theta = initGuess
+        else:
+            self.theta = np.zeros((3,1))
+
+        print(f"Model initialized with {self.n} correspondences.")
+        print(f"Initial boresight angles (rad): {self.theta.flatten()}")
+        print(f"Initial boresight angles (deg): {np.rad2deg(self.theta.flatten())}")
+        print(f"Initial residuals stats:")
+        res = np.hstack([c.w for c in self.corSet])
+        print(f"Mean residual: {np.mean(np.linalg.norm(res, axis=0)):.3f} m")
+
+        self.initResiduals = res
+
 
     def buildP(self):
         Pk = np.diag([
@@ -119,36 +143,173 @@ class Model:
                 1/self.sigmas['rp']**2,
                 1/self.sigmas['y']**2
             ])
-         
-        assert Pk.shape == (12,12)
-        n = len(self.corSet)
-        self.P = np.zeros((12*n, 12*n))
-        for k in range(n):
+
+
+        self.P = np.zeros((12*self.n, 12*self.n))
+        for k in range(self.n):
             self.P[12*k:12*(k+1), 12*k:12*(k+1)] = Pk
-    
+
+    def buildW(self):
+        sigma = self.sigmas['p2p'] / 3
+        Qxx_inv = np.diag([
+            1/sigma**2,
+            1/sigma**2,
+            1/sigma**2
+        ])
+
+        self.W = np.zeros((3*self.n, 3*self.n))
+        for k in range(self.n):
+            self.W[3*k:3*(k+1), 3*k:3*(k+1)] = Qxx_inv
+
     def plotP(self):
-        plt.imshow(self.P, cmap='hot', interpolation='nearest')
+        plt.imshow(self.Qll, cmap='hot', interpolation='nearest')
         plt.colorbar()
-        plt.title('Covariance Matrix P')
-        plt.xlabel(f"Size: {self.P.shape[0]} x {self.P.shape[1]}")
+        plt.title('Covariance Matrix Qll')
+        plt.xlabel(f"Size: {self.Qll.shape[0]} x {self.Qll.shape[1]}")
         plt.show()
-        #show only one Pk
-        Pk = self.P[0:12, 0:12]
-        plt.imshow(Pk, cmap='hot', interpolation='nearest')
+        #show only one Qk
+        Qk = self.Qll[0:12, 0:12]
+        plt.imshow(Qk, cmap='hot', interpolation='nearest')
         plt.colorbar()
-        plt.title('Covariance Matrix Pk')
-        plt.xlabel(f"Size: {Pk.shape[0]} x {Pk.shape[1]}")
+        plt.title('Covariance Matrix Qk')
+        plt.xlabel(f"Size: {Qk.shape[0]} x {Qk.shape[1]}")
         plt.show()
 
     def plotResiduals(self):
         res = np.hstack([c.w for c in self.corSet])
         print("Current residuals stats:")
-        print(f"Mean residual: {np.mean(np.linalg.norm(res, axis=0))} m")
-        print(f"Median residual: {np.median(np.linalg.norm(res, axis=0))} m")
-        print(f"Max residual: {np.max(np.linalg.norm(res, axis=0))} m") 
+        print(f"Mean residual: {np.mean(np.linalg.norm(res, axis=0)):.3f} m")
+        print(f"Median residual: {np.median(np.linalg.norm(res, axis=0)):.3f} m")
+        print(f"Max residual: {np.max(np.linalg.norm(res, axis=0)):.3f} m")
         plt.hist(np.linalg.norm(res, axis=0), bins=50)
+        plt.hist(np.linalg.norm(self.initResiduals, axis=0), bins=50)
         plt.xlabel('Residual norm (m)')
         plt.ylabel('Count')
         plt.title('Histogram of correspondence residuals')
         plt.grid()
+        plt.legend(['Final res.', 'Initial res.'])
         plt.show()
+
+    def stackBlocks(self):
+        self.A[:,:] = np.vstack([c.A for c in self.corSet])
+        self.w[:,:] = np.vstack([c.w for c in self.corSet])
+
+        for k, c in enumerate(self.corSet):
+            self.B[3*k:3*(k+1), 12*k:12*(k+1)] = c.B
+
+    def compute_S(self):
+        """
+        Compute Schur complement:
+          M = B^T W B + P      (12n x 12n)
+          S = W - W B M^{-1} B^T W   (3n x 3n)
+
+        Returns:
+          S        : (3n x 3n) Schur-complement (symmetric)
+          M_fact   : Cholesky factorization object for M (use with cho_solve)
+        """
+        B = self.B                    # (3n x 12n)
+        W = self.W                    # (3n x 3n)
+        P = self.P                    # (12n x 12n)
+
+        # Build M = B^T W B + P
+        # compute BtW = B.T @ W  -> (12n x 3n)
+        BtW = B.T @ W
+        M = BtW @ B + P              # (12n x 12n)
+
+        # Factorize M (Cholesky), prefer lower-triangular (cho_factor returns (c, lower_flag))
+        M_fact = cho_factor(M, overwrite_a=False, check_finite=False)
+
+        # Solve M X = B^T W  for X  (i.e. X = M^{-1} (B^T W) ), using factor
+        # X will be (12n x 3n)
+        X = cho_solve(M_fact, BtW, check_finite=False)
+
+        # Compute B @ X  -> (3n x 3n) equals B M^{-1} B^T W
+        BXM = B @ X
+
+        # Now S = W - W @ (B @ X)
+        S = W - (W @ BXM)
+
+        return S, M_fact
+    
+    def recover_v(self, residual_term, M_fact):
+        """
+        Recover v from:
+        v = - M^{-1} B^T W (residual_term)
+        where residual_term = A * delta_theta + w  (3n x 1)
+
+        Inputs:
+        residual_term : (3n x 1) array
+        M_fact        : factorization returned by compute_S()
+        Returns:
+        v : (12n x 1)
+        """
+        # BtW = B.T @ W  (12n x 3n)  -- compute once
+        BtW = self.B.T @ self.W
+
+        # rhs = BtW @ residual_term  (12n x 1)
+        rhs = BtW @ residual_term
+
+        # solve M v = - rhs  (v = - M^{-1} rhs)
+        v = -cho_solve(M_fact, rhs, check_finite=False)
+
+        return v
+    
+    def solve(self, max_iter=20, tol=1e-12, verbose=True):
+        """
+        Simple iterative Gauss-Helmert solver that uses compute_S and recover_v.
+        Updates self.theta and returns (theta, v, info).
+        """
+
+        for it in range(max_iter):
+            # update per-correspondence (ensure all c.* depend on current theta)
+            for c in self.corSet:
+                c.compute_l_hat()
+                c.compute_Rb2m()
+                c.computeA()
+                c.computeB(self.theta)
+                c.compute_w(self.theta)
+
+            # stack into big matrices
+            self.stackBlocks()
+
+            # compute Schur complement (and get M factor for recovering v later)
+            S, M_fact = self.compute_S()
+
+            # reduced normal eqns: (A^T S A) delta = - A^T S w
+            N = self.A.T @ S @ self.A                 # 3x3
+            rhs = - self.A.T @ S @ self.w             # 3x1
+
+            # solve for delta_theta (Cholesky if positive-def)
+            try:
+                cfN = cho_factor(N, overwrite_a=False, check_finite=False)
+                delta_theta = cho_solve(cfN, rhs, check_finite=False)
+            except Exception:
+                print("Matrix not pos-def, using np.linalg.solve")
+                delta_theta = np.linalg.solve(N + 1e-12*np.eye(3), rhs)
+
+            # update theta
+            self.theta = self.theta + delta_theta
+
+            if np.linalg.norm(delta_theta) < tol:
+                if verbose:
+                    print("Converged.")
+                break
+
+            residual_term = (self.A @ delta_theta) + self.w   # 3n x 1
+            v = self.recover_v(residual_term, M_fact)
+
+            self.delta_theta = delta_theta
+            self.v = v
+            self.S = S
+            self.M_fact = M_fact
+
+
+            if verbose:
+                print(f"[iter {it+1}] Δθ = {delta_theta.flatten()*180/np.pi} [deg]")
+                print(f"[iter {it+1}] θ = {self.theta.flatten()*180/np.pi} [deg]")
+                cond_residual = self.A @ delta_theta + self.B @ self.v + self.w
+                rms_cond = np.sqrt(np.mean(np.linalg.norm(cond_residual, axis=1)**2))
+                print(f"[iter {it+1}] Mean residual: {rms_cond:.4f} m")
+
+
+        return self.theta, self.v
