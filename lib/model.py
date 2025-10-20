@@ -101,8 +101,8 @@ class Model:
             self.corSet[k].compute_l_hat()
             self.corSet[k].compute_Rb2m()
             self.corSet[k].computeA()
-            self.corSet[k].computeB(mount['bor'])
-            self.corSet[k].compute_w(mount['bor'])
+            self.corSet[k].computeB(mount['initBor'])
+            self.corSet[k].compute_w(mount['initBor'])
 
         self.n = len(self.corSet)
         self.sigmas = sigmas

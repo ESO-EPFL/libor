@@ -1,0 +1,17 @@
+# Libor configuration file
+
+trj: "/media/topo/Data/Data/ALS/Vallet/01_Trj/01_InitialTrajectories/NavGrade/SBET_MILF18_200HZ.out"
+p2p_folder: "/media/topo/Data/Data/ALS/libor/aclens/"
+
+t_span: [396525.0, 396965.0] #time in trj and p2p reference 
+
+mount:
+  leverArm: [[-0.042], [0.183], [-0.021]] #m
+  R_s2b: [[0, -1, 0], [0, 0, -1], [1, 0, 0]]
+  initBor: [[0.0] , [0.0], [0.0]] #degrees rpy
+
+tp_latlon: [46.5, 6.5] #decimal degrees
+
+n: 1500 #num cor used in adj.
+
+refBor: [[0], [0], [0]]
