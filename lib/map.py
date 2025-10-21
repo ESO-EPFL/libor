@@ -1,5 +1,4 @@
 import numpy as np
-import math
 import pyproj
 from scipy.spatial.transform import Rotation as R, Slerp
 
@@ -15,12 +14,13 @@ from lib.rotations import *
 
 class TangentPlane:
     def __init__(self, lat, lon):
-        self.lat = lat
-        self.lon = lon
+        print(f"Setting up tangent plane at lat: {lat}°, lon: {lon}°")
+        self.lat = np.radians(lat)
+        self.lon = np.radians(lon)
 
-        self.xyz0 = np.array(lla2ecefTransformer.transform(lat, lon, 0, radians=True)).reshape(1,3)
+        self.xyz0 = np.array(lla2ecefTransformer.transform(self.lat, self.lon, 0, radians=True)).reshape(1,3)
 
-        self.R_ecef2enu = T_enu_ned() @ R_ned2e(lat, lon).T
+        self.R_ecef2enu = T_enu_ned() @ R_ned2e(self.lat, self.lon).T
 
 class Trajectory:
     def __init__(self, t, lla, rpy, tp, t_span=None):

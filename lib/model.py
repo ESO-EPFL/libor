@@ -1,9 +1,10 @@
-import numpy as np
-from lib.rotations import *
+import numpy as n
+import matplotlib as mpl
 from matplotlib import pyplot as plt
 from scipy.linalg import cho_factor, cho_solve
+from cycler import cycler
 
-np.set_printoptions(precision=5, suppress=True)
+from lib.rotations import *
 
 class Correspondence:
     def __init__(self, corr, pose_i, pose_j, mount, R_e2enu):
@@ -106,6 +107,8 @@ class Model:
 
         self.n = len(self.corSet)
         self.sigmas = sigmas
+        sigmas['rp'] = np.radians(sigmas['rp'])
+        sigmas['y'] = np.radians(sigmas['y'])
         self.buildP()
         self.buildW()
 
@@ -119,11 +122,9 @@ class Model:
             self.theta = np.zeros((3,1))
 
         print(f"Model initialized with {self.n} correspondences.")
-        print(f"Initial boresight angles (rad): {self.theta.flatten()}")
-        print(f"Initial boresight angles (deg): {np.rad2deg(self.theta.flatten())}")
-        print(f"Initial residuals stats:")
+        print(f"Initial boresight angles: {np.rad2deg(self.theta.flatten())} [°]")
         res = np.hstack([c.w for c in self.corSet])
-        print(f"Mean residual: {np.mean(np.linalg.norm(res, axis=0)):.3f} m")
+        print(f"Initial mean residual: {np.mean(np.linalg.norm(res, axis=0)):.3f} m")
 
         self.initResiduals = res
 
@@ -161,25 +162,10 @@ class Model:
         for k in range(self.n):
             self.W[3*k:3*(k+1), 3*k:3*(k+1)] = Qxx_inv
 
-    def plotP(self):
-        plt.imshow(self.Qll, cmap='hot', interpolation='nearest')
-        plt.colorbar()
-        plt.title('Covariance Matrix Qll')
-        plt.xlabel(f"Size: {self.Qll.shape[0]} x {self.Qll.shape[1]}")
-        plt.show()
-        #show only one Qk
-        Qk = self.Qll[0:12, 0:12]
-        plt.imshow(Qk, cmap='hot', interpolation='nearest')
-        plt.colorbar()
-        plt.title('Covariance Matrix Qk')
-        plt.xlabel(f"Size: {Qk.shape[0]} x {Qk.shape[1]}")
-        plt.show()
-
     def plotResiduals(self):
         res = np.hstack([c.w for c in self.corSet])
-        print("Current residuals stats:")
         print(f"Mean residual: {np.mean(np.linalg.norm(res, axis=0)):.3f} m")
-        print(f"Median residual: {np.median(np.linalg.norm(res, axis=0)):.3f} m")
+        print(f"Med residual: {np.median(np.linalg.norm(res, axis=0)):.3f} m")
         print(f"Max residual: {np.max(np.linalg.norm(res, axis=0)):.3f} m")
         plt.hist(np.linalg.norm(res, axis=0), bins=50)
         plt.hist(np.linalg.norm(self.initResiduals, axis=0), bins=50)
@@ -313,3 +299,28 @@ class Model:
 
 
         return self.theta, self.v
+    
+epfl_colors = [
+    "#007480",  # Canard
+    "#B51F1F",  # Groseille
+    "#413D3A",  # Ardoise
+    "#00A79F",  # Léman
+    "#FF0000",  # Rouge
+    "#CAC7C7",  # Perle
+]
+mpl.rcParams['axes.formatter.use_mathtext'] = True
+plt.rcParams['axes.prop_cycle'] = cycler(color=epfl_colors)
+plt.rcParams.update({
+    'axes.edgecolor': 'black',
+    'axes.linewidth': 1.2,
+    'grid.color': '#CCCCCC',
+    'grid.linestyle': '--',
+    'grid.linewidth': 0.5,
+    'axes.grid': True,
+    'font.size': 12,
+    'font.family':  ('cmr10', 'STIXGeneral'),
+    'lines.linewidth': 0.75,
+    'legend.frameon': True,
+    'legend.framealpha': 0.9,
+})
+np.set_printoptions(precision=5, suppress=True)

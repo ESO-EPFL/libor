@@ -1,0 +1,24 @@
+# Libor configuration file
+
+trj: "/media/topo/Data/Data/ALS/HelimapArpette/05_DN/02_ODyN_out/ArpetteL2L_all_SBET.out"
+p2p_folder: "/media/topo/Data/Data/ALS/HelimapArpette/04_P2P/cor_outputs/icp/"
+
+t_span: [288000.0, 296000.0] #time in trj and p2p reference 
+
+mount:
+  leverArm: [[0.0], [0.0], [0.15]] #m
+  R_s2b: [[0, 1, 0], [0, 0, 1], [1, 0, 0]]
+  initBor: [[0.0] , [0.0], [0.0]] #degrees rpy
+
+tp_latlon: [46.0, 7.0] #decimal degrees
+
+n: 1500 #num cor used in adj.
+
+refBor: [[0.2061], [0.02453], [0.35242]]
+
+sigmas:  # meters and degrees
+  xy: 0.06
+  z:  0.1
+  rp: 0.03
+  y:  0.05
+  p2p: 0.15
