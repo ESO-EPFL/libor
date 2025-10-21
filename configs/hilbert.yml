@@ -17,8 +17,8 @@ n: 1500 #num cor used in adj.
 refBor: [[-0.0366], [-0.0081], [0.2230]] #degrees
 
 sigmas:  # meters and degrees
-  xy: 0.03
-  z:  0.05
-  rp: 0.02
-  y:  0.03
-  p2p: 0.15
+  xy: 0.02
+  z:  0.03
+  rp: 0.01
+  y:  0.02
+  p2p: .1 # per axis!

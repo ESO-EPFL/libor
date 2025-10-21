@@ -151,7 +151,7 @@ class Model:
             self.P[12*k:12*(k+1), 12*k:12*(k+1)] = Pk
 
     def buildW(self):
-        sigma = self.sigmas['p2p'] / 3
+        sigma = self.sigmas['p2p']
         Qxx_inv = np.diag([
             1/sigma**2,
             1/sigma**2,
@@ -262,18 +262,19 @@ class Model:
             S, M_fact = self.compute_S()
 
             # reduced normal eqns: (A^T S A) delta = - A^T S w
-            N = self.A.T @ S @ self.A                 # 3x3
+            self.N = self.A.T @ S @ self.A                 # 3x3
             rhs = - self.A.T @ S @ self.w             # 3x1
 
             # solve for delta_theta (Cholesky if positive-def)
             try:
-                cfN = cho_factor(N, overwrite_a=False, check_finite=False)
+                cfN = cho_factor(self.N, overwrite_a=False, check_finite=False)
                 delta_theta = cho_solve(cfN, rhs, check_finite=False)
             except Exception:
                 print("Matrix not pos-def, using np.linalg.solve")
-                delta_theta = np.linalg.solve(N + 1e-12*np.eye(3), rhs)
+                delta_theta = np.linalg.solve(self.N + 1e-12*np.eye(3), rhs)
 
             # update theta
+            self.delta_theta = delta_theta
             self.theta = self.theta + delta_theta
 
             if np.linalg.norm(delta_theta) < tol:
@@ -284,22 +285,65 @@ class Model:
             residual_term = (self.A @ delta_theta) + self.w   # 3n x 1
             v = self.recover_v(residual_term, M_fact)
 
-            self.delta_theta = delta_theta
             self.v = v
             self.S = S
             self.M_fact = M_fact
 
-
             if verbose:
                 print(f"[iter {it+1}] Δθ = {delta_theta.flatten()*180/np.pi} [deg]")
                 print(f"[iter {it+1}] θ = {self.theta.flatten()*180/np.pi} [deg]")
-                cond_residual = self.A @ delta_theta + self.B @ self.v + self.w
-                rms_cond = np.sqrt(np.mean(np.linalg.norm(cond_residual, axis=1)**2))
-                print(f"[iter {it+1}] Mean residual: {rms_cond:.4f} m")
-
 
         return self.theta, self.v
+
+    def compute_posterior_uncertainty(self):
+        """
+        Compute a-posteriori variance factor and parameter covariance for the
+        Gauss-Helmert solution, using the full minimized objective.
+        Returns:
+        sigma0, Cov_theta, std_theta
+        """
+        n_obs = 3 * self.n                          
+        r = n_obs - 3    
+        
+        r_cond = (self.A @ self.delta_theta) + (self.B @ self.v) + self.w
+
+        print(r_cond)
+
+        norms = np.linalg.norm(self.w, axis=0)
+        thr = np.median(norms) + 4 * np.std(norms)
+        bad = norms > thr
+        for k in np.where(bad)[0]:
+            self.W[3*k:3*(k+1), 3*k:3*(k+1)] *= 1e-6  #effectively ignore
+            print(f"Marginalizing correspondence {k} with residual norm {norms[k]:.3f} m")
+
+        # full minimized cost J_min
+        J_obs = float(self.v.T @ self.P @ self.v)                 # scalar
+        J_cond = float(r_cond.T @ self.W @ r_cond)      # scalar
+
+        sigma0_sq = (J_obs + J_cond) / r
+        sigma0 = np.sqrt(sigma0_sq)
+
+        Cov_theta = sigma0_sq * np.linalg.inv(self.N)   # (3 x 3)
+        std_theta = np.sqrt(np.diag(Cov_theta))    # (3,)
+
+        # Print summary
+        print("\n=== A-posteriori estimates ===")
+        print(f"J_min (obs term):  {J_obs:.6e}")
+        print(f"J_min (cond term): {J_cond:.6e}")
+        print(f"J_min (total):     {J_cond + J_obs:.6e}")
+        print(f"Redundancy r = {r}")
+        print(f"a-posteriori sigma0 = {sigma0:.6e} [unit weight]")
+
+        print("\nParameter covariance (deg^2):\n", Cov_theta * (180/np.pi)**2)
+        print("Parameter std dev (deg):", np.degrees(std_theta))
+
+        return sigma0, Cov_theta, std_theta
     
+    def per_corr_norms(self):
+        return np.array([np.linalg.norm(c.w.flatten()) for c in self.corSet])
+    def perCorRes(self):
+        return np.hstack([c.w for c in self.corSet])
+
 epfl_colors = [
     "#007480",  # Canard
     "#B51F1F",  # Groseille

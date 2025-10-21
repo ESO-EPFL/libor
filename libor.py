@@ -4,6 +4,7 @@ import argparse
 import glob
 
 import numpy as np
+from lib import model
 from lib.map import Trajectory, TangentPlane, loadSBET
 from lib.model import Model
 
@@ -34,8 +35,9 @@ def main():
     print("Diff. from reference:", (np.rad2deg(theta_hat) - cfg['refBor']).flatten(), " °")
 
     print(f"\nTime elapsed: {time.time() - t_0:.2f} seconds")
-
+    model.compute_posterior_uncertainty()
     model.plotResiduals()
+    
 
 if __name__ == "__main__":
     main()
