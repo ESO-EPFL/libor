@@ -1,0 +1,24 @@
+# Libor configuration file
+
+trj: "/media/topo/Data/Data/ALS/Hilbert/01_ODyN/out/12.out"
+p2p_folder: "/media/topo/Data/Data/ALS/Hilbert/03_p2p/libor/"
+
+t_span: [478000.0, 480500.0] #must englobe p2p timestamps
+
+mount:
+  leverArm: [[0.0], [0.0], [0.231]] #m
+  R_s2b: [[0, 1, 0], [1, 0, 0], [0, 0, -1]]
+  initBor: [[0.0] , [0.0], [0.0]] #degrees rpy
+
+tp_latlon: [47.4, 9.7] #decimal degrees
+
+n: 1500 #num cor used in adj.
+
+refBor: [[-0.0366], [-0.0081], [0.2230]] #degrees
+
+sigmas:  # meters and degrees
+  xy: 0.03
+  z:  0.05
+  rp: 0.02
+  y:  0.03
+  p2p: 0.15

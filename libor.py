@@ -30,8 +30,8 @@ def main():
     theta_hat, _ = model.solve(max_iter=5, tol=1e-6, verbose=True)
 
     print("\n=== Solution ===")
-    print("Estimated boresight:", np.rad2deg(theta_hat.flatten()), " [°]")
-    print("Diff. from reference:", (np.rad2deg(theta_hat) - cfg['refBor']).flatten(), " [°]")
+    print("Estimated boresight:", np.rad2deg(theta_hat.flatten()), " °")
+    print("Diff. from reference:", (np.rad2deg(theta_hat) - cfg['refBor']).flatten(), " °")
 
     print(f"\nTime elapsed: {time.time() - t_0:.2f} seconds")
 

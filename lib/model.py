@@ -122,7 +122,7 @@ class Model:
             self.theta = np.zeros((3,1))
 
         print(f"Model initialized with {self.n} correspondences.")
-        print(f"Initial boresight angles: {np.rad2deg(self.theta.flatten())} [°]")
+        print(f"Initial boresight angles: {np.rad2deg(self.theta.flatten())} °")
         res = np.hstack([c.w for c in self.corSet])
         print(f"Initial mean residual: {np.mean(np.linalg.norm(res, axis=0)):.3f} m")
 
