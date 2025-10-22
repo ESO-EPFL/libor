@@ -1,5 +1,5 @@
 # Libor configuration file
-
+prj_name: 'Aclens'
 trj: "/media/topo/Data/Data/ALS/Vallet/01_Trj/01_InitialTrajectories/NavGrade/SBET_MILF18_200HZ.out"
 p2p_folder: "/media/topo/Data/Data/ALS/Vallet/02_P2P/libor_correctBor/"
 
@@ -21,4 +21,6 @@ sigmas: # meters and degrees
   z:  0.03
   rp: 0.02
   y:  0.03
-  p2p: 0.075
+  p2p: 0.05
+
+logFolder: '/media/topo/Data/Data/ALS/libor/'

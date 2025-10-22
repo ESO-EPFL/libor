@@ -1,6 +1,4 @@
 import numpy as np
-from concurrent.futures import ProcessPoolExecutor
-import multiprocessing
 
 c = np.cos
 s = np.sin

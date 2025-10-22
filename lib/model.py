@@ -1,12 +1,13 @@
-import numpy as n
+import glob
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 from scipy.linalg import cho_factor, cho_solve
 from cycler import cycler
+import numpy as np
 
 from lib.rotations import *
 
-class Correspondence:
+class Correspondence:   
     def __init__(self, corr, pose_i, pose_j, mount, R_e2enu):
         self.t_i = corr[0]
         self.t_j = corr[1]
@@ -112,9 +113,9 @@ class Model:
         self.buildP()
         self.buildW()
 
-        self.A = np.empty((3*len(self.corSet), 3))
-        self.B = np.empty((3*len(self.corSet), 12*len(self.corSet)))
-        self.w = np.empty((3*len(self.corSet), 1))
+        self.A = np.empty((3*len(self.corSet), 3), dtype=np.float32)
+        self.B = np.empty((3*len(self.corSet), 12*len(self.corSet)), dtype=np.float32)
+        self.w = np.empty((3*len(self.corSet), 1), dtype=np.float32)
 
         if initGuess is not None:
             self.theta = initGuess
@@ -130,39 +131,36 @@ class Model:
 
 
     def buildP(self):
-        Pk = np.diag([
-                1/self.sigmas['xy']**2,
-                1/self.sigmas['xy']**2,
-                1/self.sigmas['z']**2,
-                1/self.sigmas['rp']**2,
-                1/self.sigmas['rp']**2,
-                1/self.sigmas['y']**2,
-                1/self.sigmas['xy']**2,
-                1/self.sigmas['xy']**2,
-                1/self.sigmas['z']**2,
-                1/self.sigmas['rp']**2,
-                1/self.sigmas['rp']**2,
-                1/self.sigmas['y']**2
-            ])
-
-
-        self.P = np.zeros((12*self.n, 12*self.n))
-        for k in range(self.n):
-            self.P[12*k:12*(k+1), 12*k:12*(k+1)] = Pk
+        """
+        Build prior covariance matrix P, one block only (not full 12n x 12n block diagonal)
+        """
+        self.P_block = np.diag([
+            1/self.sigmas['xy']**2,
+            1/self.sigmas['xy']**2,
+            1/self.sigmas['z']**2,
+            1/self.sigmas['rp']**2,
+            1/self.sigmas['rp']**2,
+            1/self.sigmas['y']**2,
+            1/self.sigmas['xy']**2,
+            1/self.sigmas['xy']**2,
+            1/self.sigmas['z']**2,
+            1/self.sigmas['rp']**2,
+            1/self.sigmas['rp']**2,
+            1/self.sigmas['y']**2
+        ]).astype(np.float32)
 
     def buildW(self):
+        """
+        Build observation weight matrix W, one block only (not full 3n x 3n block diagonal)
+        """
         sigma = self.sigmas['p2p']
-        Qxx_inv = np.diag([
+        self.W_block = np.diag([
             1/sigma**2,
             1/sigma**2,
             1/sigma**2
-        ])
+        ]).astype(np.float32)
 
-        self.W = np.zeros((3*self.n, 3*self.n))
-        for k in range(self.n):
-            self.W[3*k:3*(k+1), 3*k:3*(k+1)] = Qxx_inv
-
-    def plotResiduals(self):
+    def plotResiduals(self, cfg):
         res = np.hstack([c.w for c in self.corSet])
         print(f"Mean residual: {np.mean(np.linalg.norm(res, axis=0)):.3f} m")
         print(f"Med residual: {np.median(np.linalg.norm(res, axis=0)):.3f} m")
@@ -174,7 +172,10 @@ class Model:
         plt.title('Histogram of correspondence residuals')
         plt.grid()
         plt.legend(['Final res.', 'Initial res.'])
-        plt.show()
+        if 'logFolder' in cfg:
+            plt.savefig(cfg['logFolder'] + cfg['prj_name'] + '_hist.svg', dpi=300)
+        else:
+            plt.show()
 
     def stackBlocks(self):
         self.A[:,:] = np.vstack([c.A for c in self.corSet])
@@ -186,60 +187,61 @@ class Model:
     def compute_S(self):
         """
         Compute Schur complement:
-          M = B^T W B + P      (12n x 12n)
-          S = W - W B M^{-1} B^T W   (3n x 3n)
-
+        M = sum_k( B_k^T W_k B_k + P_k )   (block-diagonal)
+        S = blockdiag( W_k - W_k B_k M_k^{-1} B_k^T W_k )
         Returns:
-          S        : (3n x 3n) Schur-complement (symmetric)
-          M_fact   : Cholesky factorization object for M (use with cho_solve)
+        S        : (3n x 3n) sparse block-diagonal Schur complement
+        M_blocks : list of (M_k, M_fact_k)
         """
-        B = self.B                    # (3n x 12n)
-        W = self.W                    # (3n x 3n)
-        P = self.P                    # (12n x 12n)
+        from scipy.linalg import cho_factor, cho_solve
+        import scipy.sparse as sp
 
-        # Build M = B^T W B + P
-        # compute BtW = B.T @ W  -> (12n x 3n)
-        BtW = B.T @ W
-        M = BtW @ B + P              # (12n x 12n)
+        S_blocks = []
+        M_blocks = []
 
-        # Factorize M (Cholesky), prefer lower-triangular (cho_factor returns (c, lower_flag))
-        M_fact = cho_factor(M, overwrite_a=False, check_finite=False)
+        for c in self.corSet:
+            Bk = c.B
+            Wk = self.W_block
+            Pk = self.P_block
 
-        # Solve M X = B^T W  for X  (i.e. X = M^{-1} (B^T W) ), using factor
-        # X will be (12n x 3n)
-        X = cho_solve(M_fact, BtW, check_finite=False)
+            # Build M_k = Bk^T Wk Bk + Pk   (12x12)
+            M_k = Bk.T @ Wk @ Bk + Pk
 
-        # Compute B @ X  -> (3n x 3n) equals B M^{-1} B^T W
-        BXM = B @ X
+            # Factorize (Cholesky)
+            M_fact_k = cho_factor(M_k, overwrite_a=False, check_finite=False)
 
-        # Now S = W - W @ (B @ X)
-        S = W - (W @ BXM)
+            # Compute M_k^{-1} (B^T W)
+            Xk = cho_solve(M_fact_k, Bk.T @ Wk, check_finite=False)
 
-        return S, M_fact
+            # Compute S_k = Wk - Wk (Bk Xk)
+            S_k = Wk - Wk @ (Bk @ Xk)
+
+            S_blocks.append(S_k)
+            M_blocks.append((M_k, M_fact_k))
+
+        S = sp.block_diag(S_blocks, format='csr')
+
+        return S, M_blocks
+
     
-    def recover_v(self, residual_term, M_fact):
+    def recover_v(self, residual_term, M_blocks):
         """
-        Recover v from:
-        v = - M^{-1} B^T W (residual_term)
-        where residual_term = A * delta_theta + w  (3n x 1)
-
-        Inputs:
-        residual_term : (3n x 1) array
-        M_fact        : factorization returned by compute_S()
-        Returns:
-        v : (12n x 1)
+        Recover v from: v_k = - M_k^{-1} B_k^T W_k r_k  (blockwise)
         """
-        # BtW = B.T @ W  (12n x 3n)  -- compute once
-        BtW = self.B.T @ self.W
+        v_list = []
+        r = residual_term.reshape(-1, 3) 
 
-        # rhs = BtW @ residual_term  (12n x 1)
-        rhs = BtW @ residual_term
+        for k, c in enumerate(self.corSet):
+            Bk = c.B
+            Wk = self.W_block
+            (_, M_fact_k) = M_blocks[k]
 
-        # solve M v = - rhs  (v = - M^{-1} rhs)
-        v = -cho_solve(M_fact, rhs, check_finite=False)
+            rhs = Bk.T @ Wk @ r[k].reshape(3,1)
+            v_k = -cho_solve(M_fact_k, rhs, check_finite=False)
+            v_list.append(v_k)
 
-        return v
-    
+        return np.vstack(v_list)
+
     def solve(self, max_iter=20, tol=1e-12, verbose=True):
         """
         Simple iterative Gauss-Helmert solver that uses compute_S and recover_v.
@@ -247,7 +249,6 @@ class Model:
         """
 
         for it in range(max_iter):
-            # update per-correspondence (ensure all c.* depend on current theta)
             for c in self.corSet:
                 c.compute_l_hat()
                 c.compute_Rb2m()
@@ -255,17 +256,14 @@ class Model:
                 c.computeB(self.theta)
                 c.compute_w(self.theta)
 
-            # stack into big matrices
             self.stackBlocks()
 
-            # compute Schur complement (and get M factor for recovering v later)
             S, M_fact = self.compute_S()
 
             # reduced normal eqns: (A^T S A) delta = - A^T S w
             self.N = self.A.T @ S @ self.A                 # 3x3
             rhs = - self.A.T @ S @ self.w             # 3x1
 
-            # solve for delta_theta (Cholesky if positive-def)
             try:
                 cfN = cho_factor(self.N, overwrite_a=False, check_finite=False)
                 delta_theta = cho_solve(cfN, rhs, check_finite=False)
@@ -273,7 +271,6 @@ class Model:
                 print("Matrix not pos-def, using np.linalg.solve")
                 delta_theta = np.linalg.solve(self.N + 1e-12*np.eye(3), rhs)
 
-            # update theta
             self.delta_theta = delta_theta
             self.theta = self.theta + delta_theta
 
@@ -293,56 +290,66 @@ class Model:
                 print(f"[iter {it+1}] Δθ = {delta_theta.flatten()*180/np.pi} [deg]")
                 print(f"[iter {it+1}] θ = {self.theta.flatten()*180/np.pi} [deg]")
 
-        return self.theta, self.v
+        return self.theta
 
-    def compute_posterior_uncertainty(self):
+    def computePosteriorUncertainty(self):
         """
-        Compute a-posteriori variance factor and parameter covariance for the
-        Gauss-Helmert solution, using the full minimized objective.
+        Blockwise computation of a-posteriori variance factor and parameter
+        covariance (adapted to block-diagonal P and W).
         Returns:
-        sigma0, Cov_theta, std_theta
+            sigma0, Cov_theta, std_theta
         """
-        n_obs = 3 * self.n                          
-        r = n_obs - 3    
-        
-        r_cond = (self.A @ self.delta_theta) + (self.B @ self.v) + self.w
+        n = self.n
 
-        print(r_cond)
+        n_obs = 3 * n
+        r = n_obs - 3
+        if r <= 0:
+            raise RuntimeError("Not enough redundancy (r <= 0)")
 
-        norms = np.linalg.norm(self.w, axis=0)
-        thr = np.median(norms) + 4 * np.std(norms)
-        bad = norms > thr
-        for k in np.where(bad)[0]:
-            self.W[3*k:3*(k+1), 3*k:3*(k+1)] *= 1e-6  #effectively ignore
-            print(f"Marginalizing correspondence {k} with residual norm {norms[k]:.3f} m")
+        v_full = self.v.reshape(-1, 1)
+        w_full = self.w.reshape(-1, 1)
+        delta = self.delta_theta.reshape(3, 1)
 
-        # full minimized cost J_min
-        J_obs = float(self.v.T @ self.P @ self.v)                 # scalar
-        J_cond = float(r_cond.T @ self.W @ r_cond)      # scalar
+        Pk = self.P_block        
+        Wk = self.W_block        
 
+        J_obs = 0.0
+        J_cond = 0.0
+
+        for k in range(n):
+            i12 = 12 * k
+            i3  = 3 * k
+
+            v_k = v_full[i12:i12+12, 0:1]        # (12,1)
+            w_k = w_full[i3:i3+3, 0:1]          # (3,1)
+            B_k = self.corSet[k].B              # (3,12)
+            A_k = self.corSet[k].A              # (3,3)
+
+            J_obs += float(v_k.T @ Pk @ v_k)
+
+            r_k = (A_k @ delta) + (B_k @ v_k) + w_k 
+            J_cond += float(r_k.T @ Wk @ r_k)
         sigma0_sq = (J_obs + J_cond) / r
         sigma0 = np.sqrt(sigma0_sq)
 
-        Cov_theta = sigma0_sq * np.linalg.inv(self.N)   # (3 x 3)
-        std_theta = np.sqrt(np.diag(Cov_theta))    # (3,)
-
-        # Print summary
+        Cov_theta = sigma0_sq * np.linalg.inv(self.N)
+        std_theta = np.sqrt(np.abs(np.diag(Cov_theta)))  
         print("\n=== A-posteriori estimates ===")
-        print(f"J_min (obs term):  {J_obs:.6e}")
-        print(f"J_min (cond term): {J_cond:.6e}")
-        print(f"J_min (total):     {J_cond + J_obs:.6e}")
+        print(f"Cost cond. {J_cond:.2f}, obs.:  {J_obs:.2f}, ratio: {J_cond/J_obs:.2f}")
         print(f"Redundancy r = {r}")
-        print(f"a-posteriori sigma0 = {sigma0:.6e} [unit weight]")
-
-        print("\nParameter covariance (deg^2):\n", Cov_theta * (180/np.pi)**2)
+        print(f"a-posteriori sigma0 = {sigma0:.3f} [unit weight]")
+        with np.printoptions(precision=9, suppress=True):
+            print("\nParameter covariance (deg^2):\n", Cov_theta * (180/np.pi)**2)
         print("Parameter std dev (deg):", np.degrees(std_theta))
 
         return sigma0, Cov_theta, std_theta
-    
-    def per_corr_norms(self):
-        return np.array([np.linalg.norm(c.w.flatten()) for c in self.corSet])
-    def perCorRes(self):
-        return np.hstack([c.w for c in self.corSet])
+
+def corrLoader(cfg):
+    pathList = glob.glob(cfg['p2p_folder'] + '/*.*')
+    nPerFile = cfg['n'] // len(pathList)
+    correspondences = np.vstack([np.loadtxt(pathList[i], delimiter=',')[np.random.choice(np.arange(len(np.loadtxt(pathList[i], delimiter=','))), nPerFile, replace=False)] for i in range(len(pathList))])
+    print("Loaded", len(correspondences), "correspondences.")
+    return correspondences
 
 epfl_colors = [
     "#007480",  # Canard

@@ -1,5 +1,5 @@
 # Libor configuration file
-
+prj_name: 'Sion'
 trj: "/media/topo/Data/Data/ALS/Sion/01_trj/SBET_CALIB400HZ.OUT"
 p2p_folder: "/media/topo/Data/Data/ALS/Sion/03_p2p/cor_outputs/libor_secAttempt/"
 
@@ -21,4 +21,6 @@ sigmas:  # meters and degrees
   z:  0.03
   rp: 0.01
   y:  0.02
-  p2p: 0.12
+  p2p: 0.1
+
+logFolder: '/media/topo/Data/Data/ALS/libor/'

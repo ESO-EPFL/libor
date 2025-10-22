@@ -1,5 +1,5 @@
 # Libor configuration file
-
+prj_name: 'Heerbrugg'
 trj: "/media/topo/Data/Data/ALS/Hilbert/01_ODyN/out/12.out"
 p2p_folder: "/media/topo/Data/Data/ALS/Hilbert/03_p2p/libor/"
 
@@ -21,4 +21,6 @@ sigmas:  # meters and degrees
   z:  0.03
   rp: 0.01
   y:  0.02
-  p2p: .1 # per axis!
+  p2p: 0.1 # per axis!
+
+logFolder: '/media/topo/Data/Data/ALS/libor/'

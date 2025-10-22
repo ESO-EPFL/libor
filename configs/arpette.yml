@@ -1,5 +1,5 @@
 # Libor configuration file
-
+prj_name: 'Arpette'
 trj: "/media/topo/Data/Data/ALS/HelimapArpette/05_DN/02_ODyN_out/ArpetteL2L_all_SBET.out"
 p2p_folder: "/media/topo/Data/Data/ALS/HelimapArpette/04_P2P/cor_outputs/icp/"
 
@@ -21,4 +21,6 @@ sigmas:  # meters and degrees
   z:  0.1
   rp: 0.03
   y:  0.05
-  p2p: 0.15
+  p2p: 0.1
+
+logFolder: '/media/topo/Data/Data/ALS/libor/'
