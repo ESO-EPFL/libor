@@ -127,8 +127,7 @@ class Model:
         res = np.hstack([c.w for c in self.corSet])
         print(f"Initial mean residual: {np.mean(np.linalg.norm(res, axis=0)):.3f} m")
 
-        self.initResiduals = res
-
+        self.initResiduals = np.linalg.norm(res, axis=0)
 
     def buildP(self):
         """
@@ -161,21 +160,27 @@ class Model:
         ]).astype(np.float32)
 
     def plotResiduals(self, cfg):
-        res = np.hstack([c.w for c in self.corSet])
-        print(f"Mean residual: {np.mean(np.linalg.norm(res, axis=0)):.3f} m")
-        print(f"Med residual: {np.median(np.linalg.norm(res, axis=0)):.3f} m")
-        print(f"Max residual: {np.max(np.linalg.norm(res, axis=0)):.3f} m")
-        plt.hist(np.linalg.norm(res, axis=0), bins=50)
-        plt.hist(np.linalg.norm(self.initResiduals, axis=0), bins=50)
+        """
+        """ 
+        plt.figure()
+        bins = np.linspace(0, np.max(self.initResiduals)*1, 75)
+        plt.hist(self.initResiduals, bins=bins, alpha=0.5, label='Initial', density=False)
+        plt.hist(self.adjustedResiduals, bins=bins, alpha=0.6, label='Adjusted', density=False)
+
+        if self.thr is not None:
+            plt.axvline(self.thr, color='r', linestyle='--', label=f'Marginalisation thr. = {self.thr:.3f} m')
+
         plt.xlabel('Residual norm (m)')
         plt.ylabel('Count')
-        plt.title('Histogram of correspondence residuals')
-        plt.grid()
-        plt.legend(['Final res.', 'Initial res.'])
-        if 'logFolder' in cfg:
-            plt.savefig(cfg['logFolder'] + cfg['prj_name'] + '_hist.svg', dpi=300)
+        plt.title('Residual distributions: initial, adjusted, marginalised')
+        plt.legend()
+        plt.grid(True)
+
+        if cfg and 'logFolder' in cfg:
+            plt.savefig(cfg['logFolder'] + cfg['prj_name'] + '_residual_hist.svg', dpi=150, bbox_inches='tight')
         else:
             plt.show()
+
 
     def stackBlocks(self):
         self.A[:,:] = np.vstack([c.A for c in self.corSet])
@@ -222,8 +227,7 @@ class Model:
         S = sp.block_diag(S_blocks, format='csr')
 
         return S, M_blocks
-
-    
+  
     def recover_v(self, residual_term, M_blocks):
         """
         Recover v from: v_k = - M_k^{-1} B_k^T W_k r_k  (blockwise)
@@ -276,7 +280,9 @@ class Model:
 
             if np.linalg.norm(delta_theta) < tol:
                 if verbose:
+                    self.adjustedResiduals = np.linalg.norm(np.hstack([c.w for c in self.corSet]), axis=0)
                     print("Converged.")
+                    print(f"Final adjusted median residuals: {np.median(self.adjustedResiduals):.3f} m")
                 break
 
             residual_term = (self.A @ delta_theta) + self.w   # 3n x 1
@@ -335,20 +341,52 @@ class Model:
         Cov_theta = sigma0_sq * np.linalg.inv(self.N)
         std_theta = np.sqrt(np.abs(np.diag(Cov_theta)))  
         print("\n=== A-posteriori estimates ===")
-        print(f"Cost cond. {J_cond:.2f}, obs.:  {J_obs:.2f}, ratio: {J_cond/J_obs:.2f}")
-        print(f"Redundancy r = {r}")
+        print(f"Cost cond. {J_cond:.2f}, obs.:  {J_obs:.2f}, ratio: {J_cond/J_obs:.2f}, redundancy: {r}")
         print(f"a-posteriori sigma0 = {sigma0:.3f} [unit weight]")
-        with np.printoptions(precision=9, suppress=True):
+        with np.printoptions(precision=8, suppress=True):
             print("\nParameter covariance (deg^2):\n", Cov_theta * (180/np.pi)**2)
         print("Parameter std dev (deg):", np.degrees(std_theta))
 
+        
+
         return sigma0, Cov_theta, std_theta
+
+    def marginalise(self, cfg, factor=5.0, verbose=True):
+        """
+        Marginalize (remove) outlier correspondences based on residual magnitude.
+        factor : threshold multiplier (default 5x median)
+        """
+        res = np.hstack([c.w for c in self.corSet])
+        res_norms = np.linalg.norm(res, axis=0)
+        med_res = np.median(res_norms)
+        self.thr = factor * med_res
+
+        inliers = res_norms <= self.thr
+        n_out = np.sum(~inliers)
+
+        if verbose:
+            print(f"\n=== Marginalisation ===")
+            print(f"Median residual = {med_res:.3f} m")
+            print(f"Threshold = {self.thr:.3f} m ({factor}× median)")
+            print(f"Removing {n_out} / {len(self.corSet)} correspondences ({100*n_out/len(self.corSet):.1f}%)")
+
+        self.corSet = [c for i, c in enumerate(self.corSet) if inliers[i]]
+        self.n = len(self.corSet)
+
+        self.A = np.empty((3*self.n, 3), dtype=np.float32)
+        self.B = np.empty((3*self.n, 12*self.n), dtype=np.float32)
+        self.w = np.empty((3*self.n, 1), dtype=np.float32)
+        self.stackBlocks()
+
+        theta_refined = self.solve(max_iter=1, verbose=verbose)      
+        self.marginalisedResiduals = np.linalg.norm(np.hstack([c.w for c in self.corSet]), axis=0)       
+        return theta_refined
 
 def corrLoader(cfg):
     pathList = glob.glob(cfg['p2p_folder'] + '/*.*')
     nPerFile = cfg['n'] // len(pathList)
     correspondences = np.vstack([np.loadtxt(pathList[i], delimiter=',')[np.random.choice(np.arange(len(np.loadtxt(pathList[i], delimiter=','))), nPerFile, replace=False)] for i in range(len(pathList))])
-    print("Loaded", len(correspondences), "correspondences.")
+    print(f"Loaded {len(correspondences)} correspondences from {len(pathList)} files.")
     return correspondences
 
 epfl_colors = [

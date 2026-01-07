@@ -1,0 +1,26 @@
+# Libor configuration file
+prj_name: 'Pordenone'
+trj: "/media/topo/Data/Data/MLS/TRK/Porderonne/04_ODyN_ecef/out/01_GNSS_INS_L2L.out"
+p2p_folder: "/media/topo/Data/Data/MLS/TRK/Porderonne/11_georefPython/01_fakeBor/p2p/cor_outputs/libor/"
+
+t_span: [318000.0, 319101.0]
+
+mount:
+  leverArm: [[0.0], [0.0], [0.0]] #m
+  R_s2b: [[0, 1, 0], [1, 0, 0], [0, 0, -1]]
+  initBor: [[0.0] , [0.0], [0.0]] #degrees rpy
+
+tp_latlon: [45.95, 12.65] #decimal degrees
+
+n: 1000 #num cor used in adj.
+
+refBor: [[0.5396], [-0.7511], [-0.45]] #degrees
+
+sigmas: # meters and degrees
+  xy: 0.03 
+  z:  0.05
+  rp: 0.03
+  y:  0.05
+  p2p: 0.15
+
+logFolder: '/media/topo/Data/Data/ALS/libor/'

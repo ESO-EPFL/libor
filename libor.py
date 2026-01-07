@@ -32,15 +32,23 @@ def main():
     print("\n=== Model Initialization ===")
     t_0 = time.time()
     model = Model(correspondences, trajectory, cfg['mount'], tangentPlane.R_ecef2enu, cfg['sigmas'])
-    theta_hat = model.solve(max_iter=5, tol=1e-6, verbose=True)
+    theta_hat = model.solve(max_iter=5, tol=1e-9, verbose=True)
 
     print("\n=== Solution ===")
-    print("Estimated boresight:", np.rad2deg(theta_hat.flatten()), " °")
-    print("Diff. from reference:", (np.rad2deg(theta_hat) - cfg['refBor']).flatten(), " °")
-
+    print(f"Reference boresight: {np.array(cfg['refBor']).flatten()} °")
+    print("Estimated boresight:", np.rad2deg(theta_hat.flatten()), "°")
+    print("Diff. from reference:", (np.rad2deg(theta_hat) - cfg['refBor']).flatten(), "°")
+    
     print(f"\nTime elapsed: {time.time() - t_0:.2f} seconds")
     model.computePosteriorUncertainty()
+
+    theta_refined = model.marginalise(cfg, factor=4.0)
+    print("Refined boresight:", np.rad2deg(theta_refined.flatten()), " °")
+    print("Final diff. from reference:", (np.rad2deg(theta_refined) - cfg['refBor']).flatten(), " °")
+    model.computePosteriorUncertainty()
+
     model.plotResiduals(cfg)
-    
+
+
 if __name__ == "__main__":
     main()

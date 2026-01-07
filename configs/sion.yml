@@ -1,7 +1,8 @@
 # Libor configuration file
 prj_name: 'Sion'
 trj: "/media/topo/Data/Data/ALS/Sion/01_trj/SBET_CALIB400HZ.OUT"
-p2p_folder: "/media/topo/Data/Data/ALS/Sion/03_p2p/cor_outputs/libor_secAttempt/"
+p2p_folder: "/media/topo/Data/Data/ALS/Sion/03_p2p/cor_outputs/libor_thirdAttempt/"
+#p2p_folder: "/media/topo/Data/Data/ALS/Sion/04_p2pNew/cor_outputs/libor_test/"
 
 t_span: [315000.0, 318250.0] #must englobe p2p timestamps
 
@@ -14,7 +15,7 @@ tp_latlon: [46.2, 7.35] #decimal degrees
 
 n: 1500 #num cor used in adj.
 
-refBor: [[-0.002], [-0.433], [0.186]]#degrees
+refBor: [[-0.002], [-0.433], [0.186]] #degrees
 
 sigmas:  # meters and degrees
   xy: 0.02
@@ -23,4 +24,4 @@ sigmas:  # meters and degrees
   y:  0.02
   p2p: 0.1
 
-logFolder: '/media/topo/Data/Data/ALS/libor/'
+logFolder: '/media/topo/Data/Data/ALS/libor/paper_logs'
