@@ -126,5 +126,5 @@ def loadSBET(path):
     except Exception as e:
         errmsg = f"Cannot open file! {str(e)}"
         raise ValueError(errmsg)
-        
+
     return data[:, 0], data[:, 1:4],  np.column_stack((data[:, 7:9], data[:, 9]-data[:, 10]))

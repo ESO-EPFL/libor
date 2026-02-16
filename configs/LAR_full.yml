@@ -1,0 +1,32 @@
+prj_name: 'Aclens Full'
+trj: "/media/topo/Data/Data/ALS/libor/in/trj/SBET_MILF18_200HZ_aclens.out"
+
+p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/aclens/full_nobor/"
+
+t_span: [396500.0, 398000.0]
+
+mount:
+  leverArm: [[-0.042], [0.183], [-0.021]] #m
+  R_s2b: [[0, -1, 0], [0, 0, -1], [1, 0, 0]]
+  initBor: [[-0.0], [0.0], [0.0]] #degrees rpy
+
+tp_latlon: [46.5, 6.5] #decimal degrees
+
+n: 5000 #num cor used in adj.
+
+refBor: [[-0.212], [0.100], [0.191]] # orig. calib.
+
+sigmas: # meters and degrees
+  xy: 0.01 
+  z:  0.03
+  rp: 0.003
+  y:  0.005
+  p2p: 0.1
+
+
+baseline:
+  rpy: [-0.197,0.097,0.197]
+  std: [0.001,0.001,0.004]
+
+logFolder: '/media/topo/Data/Data/ALS/libor/out/full/'
+

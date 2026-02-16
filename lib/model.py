@@ -103,8 +103,8 @@ class Model:
             self.corSet[k].compute_l_hat()
             self.corSet[k].compute_Rb2m()
             self.corSet[k].computeA()
-            self.corSet[k].computeB(mount['initBor'])
-            self.corSet[k].compute_w(mount['initBor'])
+            self.corSet[k].computeB(np.radians(mount['initBor']))
+            self.corSet[k].compute_w(np.radians(mount['initBor']))
 
         self.n = len(self.corSet)
         self.sigmas = sigmas
@@ -181,6 +181,136 @@ class Model:
         else:
             plt.show()
 
+    def plotBorDiff(self, cfg):
+        """
+        Plot difference between estimated and reference boresight angles
+        with a-posteriori uncertainty (single compact panel).
+        """
+        refAngles = np.array(cfg['refBor']).flatten()        # deg
+        estAngles = np.rad2deg(self.theta.flatten())         # deg
+        diffAngles = estAngles - refAngles                   # deg
+
+        sigma_rp = self.sigmas['rp']*180/np.pi
+        sigma_y = self.sigmas['y']*180/np.pi
+        labels = ["Roll", "Pitch", "Yaw"]
+        y_pos = np.arange(3)[::-1]   # [2, 1, 0] → Roll, Pitch, Yaw
+
+        fig, ax = plt.subplots(figsize=(7, 2))
+
+        max_range = 0.065  # deg
+
+        plt.rcParams['axes.spines.left'] = False
+        plt.rcParams['axes.spines.bottom'] = False
+
+        ax.axvline(
+            0.0,
+            color="k",
+            linestyle="-",
+            linewidth=1,
+            alpha=0.7,
+            zorder=1
+        )
+
+        for i in range(3):
+            ax.plot(
+                diffAngles[i],
+                y_pos[i],
+                marker="o",
+                markersize=6,
+                color=bor_paper_colors[i],
+                zorder=3
+            )
+
+            ax.errorbar(
+                diffAngles[i],
+                y_pos[i],
+                xerr=3.0 * self.std_theta[i],
+                fmt="none",
+                ecolor=bor_paper_colors[i],
+                alpha=0.8,
+                elinewidth=2,
+                capsize=4,
+                zorder=2
+            )
+            if 'baseline' in cfg:
+                ax.plot(
+                    cfg['baseline']['rpy'][i]-refAngles[i],
+                    y_pos[i],
+                    marker="s",
+                    markersize=8,
+                    color='k',
+                    zorder=5,
+                    alpha=0.5
+                )
+
+                ax.errorbar(
+                    cfg['baseline']['rpy'][i]-refAngles[i],
+                    y_pos[i],
+                    xerr=3.0 * cfg['baseline']['std'][i],
+                    fmt="--",
+                    ecolor='k',
+                    elinewidth=1,
+                    capsize=4,
+                    zorder=5,
+                    alpha=0.5
+                )
+            if i == 2:
+                ax.vlines(
+                    [-sigma_y, sigma_y],
+                    y_pos[i]-0.5,
+                    y_pos[i]+0.5,
+                    colors="k",
+                    linestyles="dashed",
+                    linewidth=1.5,
+                    zorder=4,
+                )
+                ax.plot(
+                    [-sigma_y, -sigma_y, sigma_y, sigma_y],
+                    [y_pos[i]-0.5, y_pos[i]+0.5, y_pos[i]-0.5, y_pos[i]+0.5],
+                    marker="o",
+                    markersize=4,
+                    color="k",
+                    linestyle="None",
+                    zorder=4,  
+                )
+
+        
+            else:
+                ax.vlines(
+                    [-sigma_rp, sigma_rp],
+                    y_pos[i]-0.5,
+                    y_pos[i]+0.5,
+                    colors="k",
+                    linestyles="dashed",
+                    linewidth=1.5,
+                    zorder=4,
+                )
+                ax.plot(
+                    [-sigma_rp, -sigma_rp, sigma_rp, sigma_rp],
+                    [y_pos[0]-1.45, y_pos[0]+0.5, y_pos[0]-1.45, y_pos[0]+0.5],
+                    marker="o",
+                    markersize=4,
+                    color="k",
+                    linestyle="None",
+                    zorder=4,  
+                )
+
+        ax.set_xlim(-max_range, max_range)
+        ax.set_ylim(-0.5, 2.5)
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(labels)
+        ax.set_xlabel("Δ angle (deg)")
+        ax.grid(True, axis="x", linestyle="--", alpha=0.4)
+
+
+
+        fig.tight_layout()
+
+        if cfg and "logFolder" in cfg:
+            out = cfg["logFolder"] + cfg["prj_name"] + "_bor_diff.svg"
+            plt.savefig(out, dpi=150, bbox_inches="tight")
+        else:
+            plt.show()
 
     def stackBlocks(self):
         self.A[:,:] = np.vstack([c.A for c in self.corSet])
@@ -339,16 +469,16 @@ class Model:
         sigma0 = np.sqrt(sigma0_sq)
 
         Cov_theta = sigma0_sq * np.linalg.inv(self.N)
-        std_theta = np.sqrt(np.abs(np.diag(Cov_theta)))  
+        std_theta = np.degrees(np.sqrt(np.abs(np.diag(Cov_theta))))  
         print("\n=== A-posteriori estimates ===")
         print(f"Cost cond. {J_cond:.2f}, obs.:  {J_obs:.2f}, ratio: {J_cond/J_obs:.2f}, redundancy: {r}")
         print(f"a-posteriori sigma0 = {sigma0:.3f} [unit weight]")
         with np.printoptions(precision=8, suppress=True):
             print("\nParameter covariance (deg^2):\n", Cov_theta * (180/np.pi)**2)
-        print("Parameter std dev (deg):", np.degrees(std_theta))
+        print("Parameter std dev (deg):", np.round(std_theta, 4))
 
-        
-
+        self.std_theta = std_theta
+    
         return sigma0, Cov_theta, std_theta
 
     def marginalise(self, cfg, factor=5.0, verbose=True):
@@ -387,6 +517,9 @@ def corrLoader(cfg):
     nPerFile = cfg['n'] // len(pathList)
     correspondences = np.vstack([np.loadtxt(pathList[i], delimiter=',')[np.random.choice(np.arange(len(np.loadtxt(pathList[i], delimiter=','))), nPerFile, replace=False)] for i in range(len(pathList))])
     print(f"Loaded {len(correspondences)} correspondences from {len(pathList)} files.")
+    min_time = np.min(np.min(correspondences[:,0])), np.min(correspondences[:,1])
+    max_time = np.max(np.max(correspondences[:,0])), np.max(correspondences[:,1])
+    print(f"Correspondence time span: [{min_time[0]:.3f}, {max_time[0]:.3f}] s (i), [{min_time[1]:.3f}, {max_time[1]:.3f}] s (j)")
     return correspondences
 
 epfl_colors = [
@@ -397,8 +530,15 @@ epfl_colors = [
     "#FF0000",  # Rouge
     "#CAC7C7",  # Perle
 ]
+
+bor_paper_colors = [
+    "#3eb1c2",  # Canard
+    "#866c57",  # Groseille
+    "#e14e4e",  # Ardoise
+]
 mpl.rcParams['axes.formatter.use_mathtext'] = True
 plt.rcParams['axes.prop_cycle'] = cycler(color=epfl_colors)
+
 plt.rcParams.update({
     'axes.edgecolor': 'black',
     'axes.linewidth': 1.2,

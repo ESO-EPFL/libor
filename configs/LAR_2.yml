@@ -1,0 +1,31 @@
+# Libor configuration file
+prj_name: 'Aclens 2fl'
+trj: "/media/topo/Data/Data/ALS/libor/in/trj/SBET_MILF18_200HZ_aclens.out"
+
+p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/aclens/2fl_nobor/"
+
+t_span: [396500.0, 398000.0]
+
+mount:
+  leverArm: [[-0.042], [0.183], [-0.021]] #m
+  R_s2b: [[0, -1, 0], [0, 0, -1], [1, 0, 0]]
+  initBor: [[0.0] , [0.0], [0.0]] #degrees rpy
+
+tp_latlon: [46.5, 6.5] #decimal degrees
+
+n: 3000 #num cor used in adj.
+
+refBor: [[-0.212], [0.100], [0.191]] # orig. calib.
+
+sigmas: # meters and degrees
+  xy: 0.01 
+  z:  0.01
+  rp: 0.0025
+  y:  0.005
+  p2p: 0.05
+
+baseline:
+  rpy: [-0.194,0.072,0.100]
+  std: [0.002,0.001,0.005]
+
+logFolder: '/media/topo/Data/Data/ALS/libor/out/2fl/'

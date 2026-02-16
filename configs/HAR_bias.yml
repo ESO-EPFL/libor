@@ -1,0 +1,27 @@
+# Libor configuration file
+prj_name: 'Arpette bias'
+trj: "/media/topo/Data/Data/ALS/libor/in/trj/bias_variable_rpy/arpette.out"
+
+p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/arpette/full/"
+
+t_span: [289000.0, 294150.0] #time in trj and p2p reference 
+
+mount:
+  leverArm: [[0.0], [0.0], [0.15]] #m
+  R_s2b: [[0, 1, 0], [0, 0, 1], [1, 0, 0]]
+  initBor: [[0.0], [0.0], [0.0]] #degrees rpy
+
+tp_latlon: [46.0, 7.0] #decimal degrees
+
+n: 5000 #num cor used in adj.
+
+refBor: [[0.155], [0.120], [0.369]] # orig. calib.
+
+sigmas:  # meters and degrees
+  xy: 0.03
+  z:  0.03
+  rp: 0.0025
+  y:  0.005
+  p2p: 0.1
+
+logFolder: '/media/topo/Data/Data/ALS/libor/out/bias/'

@@ -1,0 +1,27 @@
+# Libor configuration file
+prj_name: 'Heerbrugg biased'
+
+trj: "/media/topo/Data/Data/ALS/libor/in/trj/bias_variable_rpy/heerbrugg.out"
+p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/heerbrugg/full/"
+
+t_span: [478000.0, 480500.0] #must englobe p2p timestamps
+
+mount:
+  leverArm: [[0.0], [0.0], [0.231]] #m
+  R_s2b: [[0, 1, 0], [1, 0, 0], [0, 0, -1]]
+  initBor: [[0.0] , [0.0], [0.0]] #degrees rpy
+
+tp_latlon: [47.4, 9.7] #decimal degrees
+
+n: 5000 #num cor used in adj.
+
+refBor: [[-0.046], [0.043],  [0.127]] #v111 
+
+sigmas:  # meters and degrees
+  xy: 0.01
+  z:  0.01
+  rp: 0.005
+  y:  0.008
+  p2p: 0.075 # per axis!
+
+logFolder: '/media/topo/Data/Data/ALS/libor/out/bias/'

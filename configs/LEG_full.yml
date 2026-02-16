@@ -1,0 +1,26 @@
+# Libor configuration file
+prj_name: 'Sion legacy full'
+trj: "/media/topo/Data/Data/ALS/libor/in/trj/SBET_sion_legacy_400HZ.OUT"
+p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/legacy_sion/full/"
+
+t_span: [216300.0, 216947.9] #must englobe p2p timestamps
+
+mount:
+  leverArm: [[0.178], [0.056], [0.071]] #m
+  R_s2b: [[0, -1, 0], [0, 0, 1], [-1, 0, 0]]
+  initBor: [[0.0], [-0.0], [-0.0]] #degrees rpy
+
+tp_latlon: [46.24, 7.37] #decimal degrees
+
+n: 1000 #num cor used in adj.
+
+refBor: [[0.139], [-0.060], [-0.057]] # plane to plane libor
+
+sigmas:  # meters and degrees
+  xy: 0.02
+  z:  0.03
+  rp: 0.005
+  y:  0.01
+  p2p: 0.075
+
+logFolder: '/media/topo/Data/Data/ALS/libor/out/full/'
