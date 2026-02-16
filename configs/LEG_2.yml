@@ -1,5 +1,5 @@
 # Libor configuration file
-prj_name: 'Sion legacy 2fl'
+prj_name: 'LEG_2'
 trj: "/media/topo/Data/Data/ALS/libor/in/trj/SBET_sion_legacy_400HZ.OUT"
 p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/legacy_sion/2fl/"
 
@@ -23,4 +23,8 @@ sigmas:  # meters and degrees
   y:  0.01
   p2p: 0.1
 
-logFolder: '/media/topo/Data/Data/ALS/libor/out/2fl/'
+output:
+  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  fig_svg: true
+
+info: "Sion Legacy - 2 flight lines "

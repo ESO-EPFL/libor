@@ -1,4 +1,4 @@
-prj_name: 'Aclens Full'
+prj_name: 'LAR_3'
 trj: "/media/topo/Data/Data/ALS/libor/in/trj/SBET_MILF18_200HZ_aclens.out"
 
 p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/aclens/full_nobor/"
@@ -28,5 +28,9 @@ baseline:
   rpy: [-0.197,0.097,0.197]
   std: [0.001,0.001,0.004]
 
-logFolder: '/media/topo/Data/Data/ALS/libor/out/full/'
+output:
+  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  fig_svg: true
+
+info: "Aclens - 3 flight lines (cross pattern)"
 

@@ -1,5 +1,5 @@
 # Libor configuration file
-prj_name: 'Arpette full'
+prj_name: 'HAR_4'
 trj: "/media/topo/Data/Data/ALS/HelimapArpette/01_TRJ/04_IE/SBET.OUT"
 
 p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/arpette/full_nobor/"
@@ -28,4 +28,8 @@ baseline:
   rpy: [0.151,0.017,0.259]
   std: [0.001,0.001,0.001]
 
-logFolder: '/media/topo/Data/Data/ALS/libor/out/full/'
+output:
+  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  fig_svg: true
+
+info: "Arpette - 4 flight lines"

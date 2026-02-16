@@ -1,5 +1,5 @@
 # Libor configuration file
-prj_name: 'Heerbrugg 2FL'
+prj_name: 'HAL_2'
 trj: "/media/topo/Data/Data/ALS/Hilbert/01_ODyN/in/reference.out"
 p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/heerbrugg/2fl/"
 
@@ -23,4 +23,8 @@ sigmas:  # meters and degrees
   y:  0.008
   p2p: 0.075 # per axis!
 
-logFolder: '/media/topo/Data/Data/ALS/libor/out/2fl/'
+output:
+  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  fig_svg: true
+
+info: "Heerbrugg - 2 flight lines"

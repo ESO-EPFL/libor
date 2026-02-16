@@ -12,9 +12,12 @@ ecef2llaTransformer = pyproj.Transformer.from_crs("EPSG:4978", "EPSG:4326")
 
 from lib.rotations import *
 
+import logging
+logger = logging.getLogger("Libor")
+
 class TangentPlane:
     def __init__(self, lat, lon):
-        print(f"Setting up tangent plane at lat: {lat}°, lon: {lon}°")
+        logger.info(f"Setting up tangent plane at lat: {lat}°, lon: {lon}°")
         self.lat = np.radians(lat)
         self.lon = np.radians(lon)
 
@@ -121,7 +124,7 @@ def loadSBET(path):
 
     try:
         with open(path, "rb") as f:
-            print(f"Loading file {path}")
+            logger.info(f"Loading file {path}")
             data = np.fromfile(f, dtype=np.float64).reshape(-1,17)
     except Exception as e:
         errmsg = f"Cannot open file! {str(e)}"

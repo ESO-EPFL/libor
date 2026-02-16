@@ -1,11 +1,20 @@
 import glob
-import matplotlib as mpl
-from matplotlib import pyplot as plt
 from scipy.linalg import cho_factor, cho_solve
-from cycler import cycler
 import numpy as np
 
 from lib.rotations import *
+
+import logging
+logger = logging.getLogger("Libor")
+def corrLoader(cfg):
+    pathList = glob.glob(cfg['p2p_folder'] + '/*.*')
+    nPerFile = cfg['n'] // len(pathList)
+    correspondences = np.vstack([np.loadtxt(pathList[i], delimiter=',')[np.random.choice(np.arange(len(np.loadtxt(pathList[i], delimiter=','))), nPerFile, replace=False)] for i in range(len(pathList))])
+    logger.info(f"Loaded {len(correspondences)} correspondences from {len(pathList)} files.")
+    min_time = np.min(np.min(correspondences[:,0])), np.min(correspondences[:,1])
+    max_time = np.max(np.max(correspondences[:,0])), np.max(correspondences[:,1])
+    logger.info(f"Correspondence time span: [{min_time[0]:.3f}, {max_time[0]:.3f}] s (i), [{min_time[1]:.3f}, {max_time[1]:.3f}] s (j)")
+    return correspondences
 
 class Correspondence:   
     def __init__(self, corr, pose_i, pose_j, mount, R_e2enu):
@@ -93,9 +102,17 @@ class Correspondence:
         assert self.w.shape == (3,1)
 
 class Model:
-    def __init__(self, rawCor, trj, mount, R_e2enu, sigmas, initGuess=None):
+    def __init__(self, rawCor, trj, cfg, R_e2enu):
+        mount = cfg['mount']
+        sigmas = cfg['sigmas']
+
         poses_i = trj.interpolate(rawCor[:, 0], customRPY=True)
         poses_j = trj.interpolate(rawCor[:, 1], customRPY=True)
+
+        self.initBor = np.radians(mount['initBor'])
+        self.refBor = np.radians(cfg['refBor'])
+
+        self.theta = np.radians(mount['initBor'])
 
         self.corSet = []
         for k in range(len(rawCor)):
@@ -103,31 +120,26 @@ class Model:
             self.corSet[k].compute_l_hat()
             self.corSet[k].compute_Rb2m()
             self.corSet[k].computeA()
-            self.corSet[k].computeB(np.radians(mount['initBor']))
-            self.corSet[k].compute_w(np.radians(mount['initBor']))
+            self.corSet[k].computeB(self.initBor)
+            self.corSet[k].compute_w(self.initBor)
 
         self.n = len(self.corSet)
+        self.redundancy = 3*self.n - 3
         self.sigmas = sigmas
-        sigmas['rp'] = np.radians(sigmas['rp'])
-        sigmas['y'] = np.radians(sigmas['y'])
+        self.sigmas['rp'] = np.radians(sigmas['rp'])
+        self.sigmas['y'] = np.radians(sigmas['y'])
         self.buildP()
         self.buildW()
 
         self.A = np.empty((3*len(self.corSet), 3), dtype=np.float32)
         self.B = np.empty((3*len(self.corSet), 12*len(self.corSet)), dtype=np.float32)
         self.w = np.empty((3*len(self.corSet), 1), dtype=np.float32)
+    
+        self.initResiduals = np.linalg.norm(np.hstack([c.w for c in self.corSet]), axis=0)
 
-        if initGuess is not None:
-            self.theta = initGuess
-        else:
-            self.theta = np.zeros((3,1))
-
-        print(f"Model initialized with {self.n} correspondences.")
-        print(f"Initial boresight angles: {np.rad2deg(self.theta.flatten())} °")
-        res = np.hstack([c.w for c in self.corSet])
-        print(f"Initial mean residual: {np.mean(np.linalg.norm(res, axis=0)):.3f} m")
-
-        self.initResiduals = np.linalg.norm(res, axis=0)
+        logger.info(f"Model initialized with {self.n} correspondences.")
+        logger.info(f"Initial boresight angles: {np.rad2deg(self.theta.flatten())} °")
+        logger.info(f"Initial mean residual: {np.mean(self.initResiduals):.3f} m")
 
     def buildP(self):
         """
@@ -158,159 +170,6 @@ class Model:
             1/sigma**2,
             1/sigma**2
         ]).astype(np.float32)
-
-    def plotResiduals(self, cfg):
-        """
-        """ 
-        plt.figure()
-        bins = np.linspace(0, np.max(self.initResiduals)*1, 75)
-        plt.hist(self.initResiduals, bins=bins, alpha=0.5, label='Initial', density=False)
-        plt.hist(self.adjustedResiduals, bins=bins, alpha=0.6, label='Adjusted', density=False)
-
-        if self.thr is not None:
-            plt.axvline(self.thr, color='r', linestyle='--', label=f'Marginalisation thr. = {self.thr:.3f} m')
-
-        plt.xlabel('Residual norm (m)')
-        plt.ylabel('Count')
-        plt.title('Residual distributions: initial, adjusted, marginalised')
-        plt.legend()
-        plt.grid(True)
-
-        if cfg and 'logFolder' in cfg:
-            plt.savefig(cfg['logFolder'] + cfg['prj_name'] + '_residual_hist.svg', dpi=150, bbox_inches='tight')
-        else:
-            plt.show()
-
-    def plotBorDiff(self, cfg):
-        """
-        Plot difference between estimated and reference boresight angles
-        with a-posteriori uncertainty (single compact panel).
-        """
-        refAngles = np.array(cfg['refBor']).flatten()        # deg
-        estAngles = np.rad2deg(self.theta.flatten())         # deg
-        diffAngles = estAngles - refAngles                   # deg
-
-        sigma_rp = self.sigmas['rp']*180/np.pi
-        sigma_y = self.sigmas['y']*180/np.pi
-        labels = ["Roll", "Pitch", "Yaw"]
-        y_pos = np.arange(3)[::-1]   # [2, 1, 0] → Roll, Pitch, Yaw
-
-        fig, ax = plt.subplots(figsize=(7, 2))
-
-        max_range = 0.065  # deg
-
-        plt.rcParams['axes.spines.left'] = False
-        plt.rcParams['axes.spines.bottom'] = False
-
-        ax.axvline(
-            0.0,
-            color="k",
-            linestyle="-",
-            linewidth=1,
-            alpha=0.7,
-            zorder=1
-        )
-
-        for i in range(3):
-            ax.plot(
-                diffAngles[i],
-                y_pos[i],
-                marker="o",
-                markersize=6,
-                color=bor_paper_colors[i],
-                zorder=3
-            )
-
-            ax.errorbar(
-                diffAngles[i],
-                y_pos[i],
-                xerr=3.0 * self.std_theta[i],
-                fmt="none",
-                ecolor=bor_paper_colors[i],
-                alpha=0.8,
-                elinewidth=2,
-                capsize=4,
-                zorder=2
-            )
-            if 'baseline' in cfg:
-                ax.plot(
-                    cfg['baseline']['rpy'][i]-refAngles[i],
-                    y_pos[i],
-                    marker="s",
-                    markersize=8,
-                    color='k',
-                    zorder=5,
-                    alpha=0.5
-                )
-
-                ax.errorbar(
-                    cfg['baseline']['rpy'][i]-refAngles[i],
-                    y_pos[i],
-                    xerr=3.0 * cfg['baseline']['std'][i],
-                    fmt="--",
-                    ecolor='k',
-                    elinewidth=1,
-                    capsize=4,
-                    zorder=5,
-                    alpha=0.5
-                )
-            if i == 2:
-                ax.vlines(
-                    [-sigma_y, sigma_y],
-                    y_pos[i]-0.5,
-                    y_pos[i]+0.5,
-                    colors="k",
-                    linestyles="dashed",
-                    linewidth=1.5,
-                    zorder=4,
-                )
-                ax.plot(
-                    [-sigma_y, -sigma_y, sigma_y, sigma_y],
-                    [y_pos[i]-0.5, y_pos[i]+0.5, y_pos[i]-0.5, y_pos[i]+0.5],
-                    marker="o",
-                    markersize=4,
-                    color="k",
-                    linestyle="None",
-                    zorder=4,  
-                )
-
-        
-            else:
-                ax.vlines(
-                    [-sigma_rp, sigma_rp],
-                    y_pos[i]-0.5,
-                    y_pos[i]+0.5,
-                    colors="k",
-                    linestyles="dashed",
-                    linewidth=1.5,
-                    zorder=4,
-                )
-                ax.plot(
-                    [-sigma_rp, -sigma_rp, sigma_rp, sigma_rp],
-                    [y_pos[0]-1.45, y_pos[0]+0.5, y_pos[0]-1.45, y_pos[0]+0.5],
-                    marker="o",
-                    markersize=4,
-                    color="k",
-                    linestyle="None",
-                    zorder=4,  
-                )
-
-        ax.set_xlim(-max_range, max_range)
-        ax.set_ylim(-0.5, 2.5)
-        ax.set_yticks(y_pos)
-        ax.set_yticklabels(labels)
-        ax.set_xlabel("Δ angle (deg)")
-        ax.grid(True, axis="x", linestyle="--", alpha=0.4)
-
-
-
-        fig.tight_layout()
-
-        if cfg and "logFolder" in cfg:
-            out = cfg["logFolder"] + cfg["prj_name"] + "_bor_diff.svg"
-            plt.savefig(out, dpi=150, bbox_inches="tight")
-        else:
-            plt.show()
 
     def stackBlocks(self):
         self.A[:,:] = np.vstack([c.A for c in self.corSet])
@@ -376,7 +235,7 @@ class Model:
 
         return np.vstack(v_list)
 
-    def solve(self, max_iter=20, tol=1e-12, verbose=True):
+    def solve(self, max_iter=20, tol=1e-12):
         """
         Simple iterative Gauss-Helmert solver that uses compute_S and recover_v.
         Updates self.theta and returns (theta, v, info).
@@ -402,17 +261,14 @@ class Model:
                 cfN = cho_factor(self.N, overwrite_a=False, check_finite=False)
                 delta_theta = cho_solve(cfN, rhs, check_finite=False)
             except Exception:
-                print("Matrix not pos-def, using np.linalg.solve")
+                logger.warning("Matrix not pos-def, using np.linalg.solve")
                 delta_theta = np.linalg.solve(self.N + 1e-12*np.eye(3), rhs)
 
             self.delta_theta = delta_theta
             self.theta = self.theta + delta_theta
 
             if np.linalg.norm(delta_theta) < tol:
-                if verbose:
-                    self.adjustedResiduals = np.linalg.norm(np.hstack([c.w for c in self.corSet]), axis=0)
-                    print("Converged.")
-                    print(f"Final adjusted median residuals: {np.median(self.adjustedResiduals):.3f} m")
+                self.adjustedResiduals = np.linalg.norm(np.hstack([c.w for c in self.corSet]), axis=0)
                 break
 
             residual_term = (self.A @ delta_theta) + self.w   # 3n x 1
@@ -422,9 +278,9 @@ class Model:
             self.S = S
             self.M_fact = M_fact
 
-            if verbose:
-                print(f"[iter {it+1}] Δθ = {delta_theta.flatten()*180/np.pi} [deg]")
-                print(f"[iter {it+1}] θ = {self.theta.flatten()*180/np.pi} [deg]")
+
+            logger.info(f"[iter {it+1}] Δθ = {delta_theta.flatten()*180/np.pi} [deg]")
+            logger.info(f"[iter {it+1}] θ = {self.theta.flatten()*180/np.pi} [deg]")
 
         return self.theta
 
@@ -449,8 +305,8 @@ class Model:
         Pk = self.P_block        
         Wk = self.W_block        
 
-        J_obs = 0.0
-        J_cond = 0.0
+        self.J_obs = 0.0
+        self.J_cond = 0.0
 
         for k in range(n):
             i12 = 12 * k
@@ -461,27 +317,22 @@ class Model:
             B_k = self.corSet[k].B              # (3,12)
             A_k = self.corSet[k].A              # (3,3)
 
-            J_obs += float(v_k.T @ Pk @ v_k)
+            self.J_obs += float(v_k.T @ Pk @ v_k)
 
             r_k = (A_k @ delta) + (B_k @ v_k) + w_k 
-            J_cond += float(r_k.T @ Wk @ r_k)
-        sigma0_sq = (J_obs + J_cond) / r
+            self.J_cond += float(r_k.T @ Wk @ r_k)
+        sigma0_sq = (self.J_obs + self.J_cond) / r
         sigma0 = np.sqrt(sigma0_sq)
 
         Cov_theta = sigma0_sq * np.linalg.inv(self.N)
-        std_theta = np.degrees(np.sqrt(np.abs(np.diag(Cov_theta))))  
-        print("\n=== A-posteriori estimates ===")
-        print(f"Cost cond. {J_cond:.2f}, obs.:  {J_obs:.2f}, ratio: {J_cond/J_obs:.2f}, redundancy: {r}")
-        print(f"a-posteriori sigma0 = {sigma0:.3f} [unit weight]")
-        with np.printoptions(precision=8, suppress=True):
-            print("\nParameter covariance (deg^2):\n", Cov_theta * (180/np.pi)**2)
-        print("Parameter std dev (deg):", np.round(std_theta, 4))
+        std_theta = np.sqrt(np.abs(np.diag(Cov_theta)))
+
 
         self.std_theta = std_theta
+        self.Cov_theta = Cov_theta
+        self.sigma0 = sigma0
     
-        return sigma0, Cov_theta, std_theta
-
-    def marginalise(self, cfg, factor=5.0, verbose=True):
+    def marginalise(self, factor=5.0):
         """
         Marginalize (remove) outlier correspondences based on residual magnitude.
         factor : threshold multiplier (default 5x median)
@@ -492,13 +343,8 @@ class Model:
         self.thr = factor * med_res
 
         inliers = res_norms <= self.thr
-        n_out = np.sum(~inliers)
 
-        if verbose:
-            print(f"\n=== Marginalisation ===")
-            print(f"Median residual = {med_res:.3f} m")
-            print(f"Threshold = {self.thr:.3f} m ({factor}× median)")
-            print(f"Removing {n_out} / {len(self.corSet)} correspondences ({100*n_out/len(self.corSet):.1f}%)")
+        self.n_out_frac = [np.sum(~inliers) , self.n]
 
         self.corSet = [c for i, c in enumerate(self.corSet) if inliers[i]]
         self.n = len(self.corSet)
@@ -508,48 +354,29 @@ class Model:
         self.w = np.empty((3*self.n, 1), dtype=np.float32)
         self.stackBlocks()
 
-        theta_refined = self.solve(max_iter=1, verbose=verbose)      
-        self.marginalisedResiduals = np.linalg.norm(np.hstack([c.w for c in self.corSet]), axis=0)       
-        return theta_refined
+        self.theta_refined = self.solve(max_iter=1)      
+        self.adjustedResiduals = np.linalg.norm(np.hstack([c.w for c in self.corSet]), axis=0)   
+ 
+    
+    def estimateObservability(self):
 
-def corrLoader(cfg):
-    pathList = glob.glob(cfg['p2p_folder'] + '/*.*')
-    nPerFile = cfg['n'] // len(pathList)
-    correspondences = np.vstack([np.loadtxt(pathList[i], delimiter=',')[np.random.choice(np.arange(len(np.loadtxt(pathList[i], delimiter=','))), nPerFile, replace=False)] for i in range(len(pathList))])
-    print(f"Loaded {len(correspondences)} correspondences from {len(pathList)} files.")
-    min_time = np.min(np.min(correspondences[:,0])), np.min(correspondences[:,1])
-    max_time = np.max(np.max(correspondences[:,0])), np.max(correspondences[:,1])
-    print(f"Correspondence time span: [{min_time[0]:.3f}, {max_time[0]:.3f}] s (i), [{min_time[1]:.3f}, {max_time[1]:.3f}] s (j)")
-    return correspondences
+        if not hasattr(self, "N") or not hasattr(self, "Cov_theta"):
+            raise RuntimeError("Run solve() and computePosteriorUncertainty() first.")
 
-epfl_colors = [
-    "#007480",  # Canard
-    "#B51F1F",  # Groseille
-    "#413D3A",  # Ardoise
-    "#00A79F",  # Léman
-    "#FF0000",  # Rouge
-    "#CAC7C7",  # Perle
-]
+        eigvals, eigvecs = np.linalg.eigh(self.N)
+        eigvals = np.sort(eigvals)[::-1]
 
-bor_paper_colors = [
-    "#3eb1c2",  # Canard
-    "#866c57",  # Groseille
-    "#e14e4e",  # Ardoise
-]
-mpl.rcParams['axes.formatter.use_mathtext'] = True
-plt.rcParams['axes.prop_cycle'] = cycler(color=epfl_colors)
+        lambda_max = eigvals[0]
+        lambda_min = eigvals[-1]
+        cond_number = lambda_max / lambda_min
 
-plt.rcParams.update({
-    'axes.edgecolor': 'black',
-    'axes.linewidth': 1.2,
-    'grid.color': '#CCCCCC',
-    'grid.linestyle': '--',
-    'grid.linewidth': 0.5,
-    'axes.grid': True,
-    'font.size': 12,
-    'font.family':  ('cmr10', 'STIXGeneral'),
-    'lines.linewidth': 0.75,
-    'legend.frameon': True,
-    'legend.framealpha': 0.9,
-})
-np.set_printoptions(precision=5, suppress=True)
+        D = np.sqrt(np.diag(self.Cov_theta))
+        Corr = self.Cov_theta / np.outer(D, D)
+
+        self.observability = {
+            "eigvals": eigvals,
+            "cond_number": cond_number,
+            "corr_matrix": Corr,
+            "eigvecs": eigvecs
+        }
+

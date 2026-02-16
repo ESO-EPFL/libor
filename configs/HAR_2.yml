@@ -1,8 +1,7 @@
 # Libor configuration file
-prj_name: 'Arpette 2FL'
+prj_name: 'HAR_2'
 trj: "/media/topo/Data/Data/ALS/HelimapArpette/01_TRJ/04_IE/SBET.OUT"
 
-# trj: "/media/topo/Data/Data/ALS/libor/data/trj/bias_variable_rpy/arpette.out"
 p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/arpette/2fl_nobor/"
 
 t_span: [289000.0, 294150.0] #time in trj and p2p reference 
@@ -30,4 +29,8 @@ baseline:
   rpy: [0.146,0.013,0.254]
   std: [0.006,0.005,0.025]
 
-logFolder: '/media/topo/Data/Data/ALS/libor/out/2fl/'
+output:
+  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  fig_svg: true
+
+info: "Arpette - 2 flight lines - 090201 & 090603"
