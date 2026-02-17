@@ -24,7 +24,7 @@ sigmas:  # meters and degrees
   p2p: 0.075 # per axis!
 
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/'
   fig_svg: true
 
 info: "Heerbrugg - 2 flight lines"

@@ -29,7 +29,7 @@ baseline:
   std: [0.001,0.001,0.004]
 
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/'
   fig_svg: true
 
 info: "Aclens - 3 flight lines (cross pattern)"

@@ -24,7 +24,7 @@ sigmas:  # meters and degrees
   p2p: 0.075
 
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/'
   fig_svg: true
 
 info: "Sion Legacy - 4 flight lines "

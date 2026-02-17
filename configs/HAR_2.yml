@@ -30,7 +30,7 @@ baseline:
   std: [0.006,0.005,0.025]
 
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/'
   fig_svg: true
 
 info: "Arpette - 2 flight lines - 090201 & 090603"

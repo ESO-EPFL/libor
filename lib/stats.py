@@ -263,7 +263,7 @@ class CalibrationStats:
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
         buf.seek(0)
-        self.img_bor_diff = Image(buf, width=16*cm, height=6*cm)
+        self.img_bor_diff = Image(buf, width=16*cm, height=4*cm)
         plt.close(fig)
     
     def plot_correlation_matrix(self):
@@ -281,7 +281,9 @@ class CalibrationStats:
         
         color_ramp = [
             (0.0, "#B51F1F"),  
+            (0.35, "#FFC4B8"),
             (0.5, "#ffffff"), 
+            (0.65, "#FFC4B8"),
             (1.0, "#B51F1F"),  
         ]
         cmap = LinearSegmentedColormap.from_list("custom", color_ramp)
@@ -308,7 +310,7 @@ class CalibrationStats:
         if self.cfg["output"].get("fig_svg", False):
             svg_path = os.path.join(
                 self.cfg["output"]["folder"],
-                f"{self.cfg['prj_name']}_residuals.svg"
+                f"{self.cfg['prj_name']}_corr_matrix.svg"
                 )
 
         fig.savefig(svg_path, bbox_inches="tight")
@@ -342,15 +344,14 @@ class CalibrationStats:
         if "info" in self.cfg:
             elements.append(Paragraph(f"Info: {self.cfg['info']}", styles["Normal"]))
 
-        elements.append(Paragraph("<b>Initialization and Solving</b>", styles["Heading2"]))
+        elements.append(Paragraph("<b>Initialization </b>", styles["Heading2"]))
         elements.append(Spacer(1, 0.3*cm))
 
-        init_data = [["Correspondences", "Initial guess (deg)", "Initial mean residual (m)", "Final mean residual (m)"]]
+        init_data = [["Correspondences", "Initial guess (deg)", "Initial mean residual (m)"]]
         init_data.append([
             str(self.data["n_correspondences"]),
             f"{self.data['theta_init_deg']}",
-            f"{np.mean(self.data['initResiduals']):.2f}",
-            f"{np.mean(self.data['adjustedResiduals']):.2f}"
+            f"{np.mean(self.data['initResiduals']):.2f}"
         ])
 
         self._add_table(elements, init_data, header=True)
@@ -384,13 +385,14 @@ class CalibrationStats:
 
         elements.append(Paragraph("<b>A-Posteriori Statistics</b>", styles["Heading2"]))
         elements.append(Spacer(1, 0.3*cm))
-        ap_data = [["σ0", "Redundancy", "Cost ratio", "Solving time (s)", "Condition number"]]
+        ap_data = [["σ0", "Redundancy", "Cost ratio", "Solving time (s)", "Condition number", "Final mean residual (m)"]]
         ap_data.append([
             f"{self.data['sigma0']:.2f}",
             str(self.data["redundancy"]),
             f"{self.data['cost_ratio']:.2f}",
             f"{self.data['solving_time']:.2f}",
-            f"{int(self.data['observability']['cond_number'])}"
+            f"{int(self.data['observability']['cond_number'])}",
+            f"{np.mean(self.data['adjustedResiduals']):.2f}"
         ])
         self._add_table(elements, ap_data, header=True)
 

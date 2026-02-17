@@ -1,5 +1,5 @@
 # Libor configuration file
-prj_name: 'LAR_2'
+prj_name: 'LAR_2_cross'
 trj: "/media/topo/Data/Data/ALS/libor/in/trj/SBET_MILF18_200HZ_aclens.out"
 
 p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/aclens/2fl_nobor/"
@@ -29,7 +29,7 @@ baseline:
   std: [0.002,0.001,0.005]
 
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/'
   fig_svg: true
 
-info: "Aclens - 2 flight lines (cross pattern)"
+info: "Aclens - 2 flight lines (cross)"

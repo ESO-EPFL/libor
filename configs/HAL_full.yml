@@ -8,7 +8,7 @@ t_span: [478000.0, 480500.0] #must englobe p2p timestamps
 mount:
   leverArm: [[0.0], [0.0], [0.231]] #m
   R_s2b: [[0, 1, 0], [1, 0, 0], [0, 0, -1]]
-  initBor: [[-0.036], [-0.010],  [0.226]] #degrees rpy
+  initBor: [[-0.0], [-0.0],  [0.0]] #degrees rpy
 
 tp_latlon: [47.4, 9.7] #decimal degrees
 
@@ -24,7 +24,7 @@ sigmas:  # meters and degrees
   p2p: 0.075 # per axis!
 
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/new_out/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/'
   fig_svg: true
 
 info: "Heerbrugg - 4 flight lines"
