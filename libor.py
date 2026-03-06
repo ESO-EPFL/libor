@@ -1,9 +1,8 @@
 import os
-from pyexpat import model
 import time
-from sklearn import logger
 import yaml
 import argparse
+import glob
 
 
 import numpy as np
@@ -75,6 +74,7 @@ def main():
     t,lla,rpy = loadSBET(cfg['trj'])
     trajectory = Trajectory(t, lla, rpy, tangentPlane, cfg['t_span'])
 
+    cfg["file_paths"] = glob.glob(os.path.join(cfg["p2p_folder"], "*.*"))
     correspondences = corrLoader(cfg)
 
     logger.info("")
@@ -103,10 +103,10 @@ def main():
     logger.info("")
     logger.info(f"=== Marginalisation ===")
 
-    model.marginalise(factor=5.0)
+    model.marginalise(factor=2.0)
 
     logger.info(f"Mean residual = {np.mean(model.adjustedResiduals):.3f} m")
-    logger.info(f"Threshold = {model.thr:.3f} m ({5.0}× median)")
+    logger.info(f"Threshold = {model.thr:.3f} m ({2.0}× median)")
     logger.info(f"Removing {model.n_out_frac[0]}/{model.n_out_frac[1]} correspondences")
     logger.info(f"Refined boresight: {np.rad2deg(model.theta.flatten())} °")
     logger.info(f"Final diff. from reference: {(np.rad2deg(model.theta) - cfg['refBor']).flatten()} °")

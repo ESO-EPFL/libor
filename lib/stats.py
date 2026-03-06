@@ -27,6 +27,10 @@ class CalibrationStats:
 
         self.data["n_correspondences"] = getattr(model, "n", None)
 
+        self.data["file_paths"] = self.cfg["file_paths"]
+        self.data["sampling_strategy"] = self.cfg["sampling"]["strategy"] if "sampling" in self.cfg else None
+        self.data["sampling_value"] = self.cfg["sampling"]["value"] if "sampling" in self.cfg else None
+
         self.data["theta_deg"] = (
             np.degrees(model.theta.flatten())
             if hasattr(model, "theta") else np.nan
@@ -79,7 +83,7 @@ class CalibrationStats:
             return
 
         fig = plt.figure()
-
+        
         bins = np.linspace(0, np.max(initResiduals)*1, 75)
 
         plt.hist(initResiduals, bins=bins, alpha=0.5,
@@ -113,11 +117,30 @@ class CalibrationStats:
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
         buf.seek(0)
-        self.img_residuals = Image(buf, width=12*cm, height=9*cm)
+        self.img_residuals = Image(buf, width=10*cm, height=7.5*cm)
         plt.close(fig)
 
     def plot_boresight_difference(self):
 
+        inch_to_cm = 1/2.54
+
+        plt.rcParams.update({
+            "font.size": 8,
+            "axes.titlesize": 9,
+            "axes.labelsize": 8,
+            "xtick.labelsize": 8,
+            "ytick.labelsize": 8,
+            "legend.fontsize": 8
+        })
+
+        fig, ax = plt.subplots(figsize=(8.5*inch_to_cm, 1.65*inch_to_cm))
+
+        ax.set_title("Boresight angle differences with reference", pad=6)
+        for spine in ax.spines.values():
+            spine.set_linewidth(0.5)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        max_range = 0.075
         cfg = self.cfg
 
         theta = self.data["theta_deg"]
@@ -137,11 +160,6 @@ class CalibrationStats:
         labels = ["Roll", "Pitch", "Yaw"]
         y_pos = np.arange(3)[::-1]
 
-        fig, ax = plt.subplots(figsize=(7, 2))
-        ax.set_title("Boresight angle differences with reference", fontsize=14, pad=15)
-
-        max_range = 0.065
-
         plt.rcParams['axes.spines.left'] = False
         plt.rcParams['axes.spines.bottom'] = False
 
@@ -149,7 +167,7 @@ class CalibrationStats:
             0.0,
             color="k",
             linestyle="-",
-            linewidth=1,
+            linewidth=0.25,
             alpha=0.7,
             zorder=1
         )
@@ -159,10 +177,11 @@ class CalibrationStats:
             ax.plot(
                 diffAngles[i],
                 y_pos[i],
-                marker="o",
-                markersize=6,
-                color=bor_paper_colors[i],
-                zorder=3
+                marker=".",
+                markersize=8,
+                color=bor_paper_colors[0],
+                zorder=6,
+                label="Proposed approach" if i == 0 else ""
             )
 
             ax.errorbar(
@@ -170,35 +189,69 @@ class CalibrationStats:
                 y_pos[i],
                 xerr=3.0 * std_theta[i],
                 fmt="none",
-                ecolor=bor_paper_colors[i],
-                alpha=0.8,
-                elinewidth=2,
-                capsize=4,
-                zorder=2
+                ecolor=bor_paper_colors[0],
+                elinewidth=1.,
+                capsize=3,
+                zorder=6
             )
 
-            if 'baseline' in cfg:
+            if "riprocess" in cfg:
+
+                rip_est = np.array(cfg["riprocess"]["rpy"])
+                rip_std = np.array(cfg["riprocess"]["std"])
+                rip_diff = rip_est - refAngles
+
                 ax.plot(
-                    cfg['baseline']['rpy'][i] - refAngles[i],
+                    rip_diff[i],
                     y_pos[i],
                     marker="s",
-                    markersize=8,
-                    color='k',
+                    markersize=4.5,
+                    markerfacecolor=bor_paper_colors[1],
+                    markeredgewidth=0.,
                     zorder=5,
-                    alpha=0.5
+                    label="Plane-based" if i == 0 else ""
                 )
 
                 ax.errorbar(
-                    cfg['baseline']['rpy'][i] - refAngles[i],
+                    rip_diff[i],
                     y_pos[i],
-                    xerr=3.0 * cfg['baseline']['std'][i],
-                    fmt="--",
-                    ecolor='k',
-                    elinewidth=1,
-                    capsize=4,
-                    zorder=5,
-                    alpha=0.5
+                    xerr=3.0 * rip_std[i],
+                    fmt="none",
+                    ecolor=bor_paper_colors[1],
+                    elinewidth=0.75,
+                    capsize=3,
+                    zorder=5
                 )
+
+            if "dn" in cfg:
+
+                dn_est = np.array(cfg["dn"]["rpy"])
+                dn_std = np.array(cfg["dn"]["std"])
+                dn_diff = dn_est - refAngles
+
+                ax.plot(
+                    dn_diff[i],
+                    y_pos[i],
+                    marker="D",
+                    markersize=4.5,
+                    markerfacecolor=bor_paper_colors[2],
+                    markeredgewidth=0.,
+                    zorder=5,
+                    label="DN solution" if i == 0 else ""
+                )
+
+                ax.errorbar(
+                    dn_diff[i],
+                    y_pos[i],
+                    xerr=3.0 * dn_std[i],
+                    fmt="none",
+                    ecolor=bor_paper_colors[2],
+                    elinewidth=0.75,
+                    capsize=3,
+                    zorder=5,
+    )
+
+
 
             if i == 2:
                 ax.vlines(
@@ -207,7 +260,7 @@ class CalibrationStats:
                     y_pos[i]+0.5,
                     colors="k",
                     linestyles="dashed",
-                    linewidth=1.5,
+                    linewidth=1.,
                     zorder=4,
                 )
                 ax.plot(
@@ -215,7 +268,7 @@ class CalibrationStats:
                     [y_pos[i]-0.5, y_pos[i]+0.5,
                     y_pos[i]-0.5, y_pos[i]+0.5],
                     marker="o",
-                    markersize=4,
+                    markersize=2,
                     color="k",
                     linestyle="None",
                     zorder=4,
@@ -228,7 +281,7 @@ class CalibrationStats:
                     y_pos[i]+0.5,
                     colors="k",
                     linestyles="dashed",
-                    linewidth=1.5,
+                    linewidth=1,
                     zorder=4,
                 )
 
@@ -237,7 +290,7 @@ class CalibrationStats:
                     [y_pos[i]-0.5, y_pos[i]+0.5,
                     y_pos[i]-0.5, y_pos[i]+0.5],
                     marker="o",
-                    markersize=4,
+                    markersize=2,
                     color="k",
                     linestyle="None",
                     zorder=4,
@@ -247,8 +300,9 @@ class CalibrationStats:
         ax.set_ylim(-0.5, 2.5)
         ax.set_yticks(y_pos)
         ax.set_yticklabels(labels)
-        ax.set_xlabel("Δ angle (deg)")
+        ax.set_xlabel("Δ angle (deg) - blue: proposed, brown: plane-based, red: DN")
         ax.grid(True, axis="x", linestyle="--", alpha=0.4)
+        #ax.legend(loc="upper right", frameon=True, framealpha=0.9)
 
         fig.tight_layout()
 
@@ -256,14 +310,13 @@ class CalibrationStats:
             svg_path = os.path.join(
                 self.cfg["output"]["folder"],
                 f"{self.cfg['prj_name']}_bor_dif.svg"
-                )
-
-        fig.savefig(svg_path, bbox_inches="tight")
+            )
+            fig.savefig(svg_path, bbox_inches="tight")
         
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
         buf.seek(0)
-        self.img_bor_diff = Image(buf, width=16*cm, height=4*cm)
+        self.img_bor_diff = Image(buf, width=8.5*cm, height=3.2*cm)
         plt.close(fig)
     
     def plot_correlation_matrix(self):
@@ -281,9 +334,9 @@ class CalibrationStats:
         
         color_ramp = [
             (0.0, "#B51F1F"),  
-            (0.35, "#FFC4B8"),
+            (0.25, "#FF9191"),
             (0.5, "#ffffff"), 
-            (0.65, "#FFC4B8"),
+            (0.75, "#FF9191"),
             (1.0, "#B51F1F"),  
         ]
         cmap = LinearSegmentedColormap.from_list("custom", color_ramp)
@@ -319,7 +372,7 @@ class CalibrationStats:
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
         buf.seek(0)
-        self.img_corr_matrix = Image(buf, width=11*cm, height=8*cm)
+        self.img_corr_matrix = Image(buf, width=9.5*cm, height=7*cm)
         plt.close(fig)
 
     def generate_pdf_report(self, output_path):
@@ -331,24 +384,26 @@ class CalibrationStats:
         banner_path = "./media/libor.png"
         if os.path.exists(banner_path):
             elements.append(Image(banner_path, width=16*cm, height=4.5*cm))
-            elements.append(Spacer(1, 0.5*cm))
+            elements.append(Spacer(1, 0.2*cm))
 
 
         elements.append(Paragraph("<b>Calibration Report</b>", styles["Title"]))
-        elements.append(Spacer(1, 0.3*cm))
+        elements.append(Spacer(1, 0.2*cm))
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         elements.append(Paragraph(f"Generated: {timestamp}", styles["Normal"]))
-        elements.append(Spacer(1, 0.3*cm))
+        elements.append(Spacer(1, 0.2*cm))
 
         if "info" in self.cfg:
             elements.append(Paragraph(f"Info: {self.cfg['info']}", styles["Normal"]))
 
         elements.append(Paragraph("<b>Initialization </b>", styles["Heading2"]))
-        elements.append(Spacer(1, 0.3*cm))
+        elements.append(Spacer(1, 0.2*cm))
 
-        init_data = [["Correspondences", "Initial guess (deg)", "Initial mean residual (m)"]]
+        init_data = [["Sampling strat.", "Sampling value", "Corres. num.", "Initial guess (deg)", "Initial mean residual (m)"]]
         init_data.append([
+            str(self.data["sampling_strategy"]),
+            str(self.data["sampling_value"]),
             str(self.data["n_correspondences"]),
             f"{self.data['theta_init_deg']}",
             f"{np.mean(self.data['initResiduals']):.2f}"
@@ -357,7 +412,7 @@ class CalibrationStats:
         self._add_table(elements, init_data, header=True)
 
         elements.append(Paragraph("<b>Final Solution</b>", styles["Heading2"]))
-        elements.append(Spacer(1, 0.3*cm))
+        elements.append(Spacer(1, 0.2*cm))
 
         theta = self.data["theta_deg"]
         theta_ref = self.data["theta_reference_deg"]
@@ -384,7 +439,7 @@ class CalibrationStats:
             self._add_table(elements, sol_data, header=True)
 
         elements.append(Paragraph("<b>A-Posteriori Statistics</b>", styles["Heading2"]))
-        elements.append(Spacer(1, 0.3*cm))
+        elements.append(Spacer(1, 0.2*cm))
         ap_data = [["σ0", "Redundancy", "Cost ratio", "Solving time (s)", "Condition number", "Final mean residual (m)"]]
         ap_data.append([
             f"{self.data['sigma0']:.2f}",
@@ -396,11 +451,61 @@ class CalibrationStats:
         ])
         self._add_table(elements, ap_data, header=True)
 
+        elements.append(Paragraph("<b>Comparisons</b>", styles["Heading2"]))
+        elements.append(Spacer(1, 0.2*cm))
+
+        if "riprocess" in self.cfg and "dn" in self.cfg:
+
+            comp_data = [[
+                "Parameter",
+                "Riprocess est. (°)",
+                "Riprocess sigma (°)",
+                "DN est. (°)",
+                "DN sigma (°)"
+            ]]
+
+            rip = self.cfg["riprocess"]
+            dn  = self.cfg["dn"]
+
+            for i, name in enumerate(["Roll", "Pitch", "Yaw"]):
+
+                comp_data.append([
+                    name,
+                    f"{rip['rpy'][i]:.3f}",
+                    f"{rip['std'][i]:.3f}",
+                    f"{dn['rpy'][i]:.3f}",
+                    f"{dn['std'][i]:.3f}",
+                ])
+
+            self._add_table(elements, comp_data, header=True)
+
+        if "riprocess" in self.cfg:
+
+            rip = self.cfg["riprocess"]
+
+            plane_data = [[
+                "Plane number",
+                "Init. plane res. (m)",
+                "Adj. plane res. (m)"
+            ]]
+
+            plane_data.append([
+                str(rip.get("plane_num", "N/A")),
+                f"{rip.get('p_sig_prio', np.nan):.3f}",
+                f"{rip.get('p_sig_post', np.nan):.3f}",
+            ])
+
+            self._add_table(elements, plane_data, header=True)
         elements.append(Paragraph("<b>Figures </b>", styles["Heading2"]))
         elements.append(self.img_residuals)
+        elements.append(Spacer(1, 0.1*cm))
         elements.append(self.img_bor_diff)
+        elements.append(Spacer(1, 0.1*cm))
         elements.append(self.img_corr_matrix)
 
+        elements.append(Paragraph("<b>Miscallenous</b>", styles["Heading2"]))
+        for i,path in enumerate(self.data["file_paths"]):
+            elements.append(Paragraph(f"File {i+1}: {path}", styles["Normal"]))
         doc.build(elements)
 
     def _add_table(self, elements, data, header=False):
@@ -430,9 +535,9 @@ epfl_colors = [
 ]
 
 bor_paper_colors = [
-    "#3eb1c2",  # Canard
-    "#866c57",  # Groseille
-    "#e14e4e",  # Ardoise
+    "#3eb1c2",  
+    "#a1866fff",  
+    "#e14e4e",  
 ]
 
 mpl.rcParams['axes.formatter.use_mathtext'] = True
@@ -445,7 +550,7 @@ plt.rcParams.update({
     'grid.linestyle': '--',
     'grid.linewidth': 0.5,
     'axes.grid': True,
-    'font.size': 12,
+    'font.size': 14,
     'font.family':  ('cmr10', 'STIXGeneral'),
     'lines.linewidth': 0.75,
     'legend.frameon': True,

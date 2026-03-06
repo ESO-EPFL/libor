@@ -13,7 +13,9 @@ mount:
 
 tp_latlon: [46.0, 7.0] #decimal degrees
 
-n: 5000 #num cor used in adj.
+sampling:
+  strategy: 'max'
+  value: 4000
 
 refBor: [[0.206], [0.025], [0.352]] # orig. calib.
 
@@ -24,13 +26,19 @@ sigmas:  # meters and degrees
   y:  0.005
   p2p: 0.1
 
+riprocess:
+  rpy: [0.152,0.007,0.212]
+  std: [0.006,0.005,0.027]
+  plane_num: 533
+  p_sig_prio: 0.28
+  p_sig_post: 0.24
 
-baseline:
-  rpy: [0.146,0.013,0.254]
-  std: [0.006,0.005,0.025]
+dn:
+  rpy: [0.211,0.023,0.325]
+  std: [0.002,0.0002,0.0005]
 
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/out/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/nominal/'
   fig_svg: true
 
-info: "Arpette - 2 flight lines - 090201 & 090603"
+info: "Arpette - 2 flight lines "

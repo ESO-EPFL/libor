@@ -8,11 +8,12 @@ t_span: [216300.0, 216947.9] #must englobe p2p timestamps
 mount:
   leverArm: [[0.178], [0.056], [0.071]] #m
   R_s2b: [[0, -1, 0], [0, 0, 1], [-1, 0, 0]]
-  initBor: [[0.0], [-0.0], [-0.0]] #degrees rpy
+  initBor: [[0], [0], [0]] #degrees rpy
 
 tp_latlon: [46.24, 7.37] #decimal degrees
-
-n: 1000 #num cor used in adj.
+sampling:
+  strategy: 'max'
+  value: 1500
 
 refBor: [[0.139], [-0.060], [-0.057]] # plane to plane libor
 
@@ -23,8 +24,19 @@ sigmas:  # meters and degrees
   y:  0.01
   p2p: 0.075
 
+riprocess:
+  rpy: [0.142,-0.081,-0.050]
+  std: [0.0026,0.0024,0.0035]
+  plane_num: 283
+  p_sig_prio: 0.12
+  p_sig_post: 0.04
+
+dn:
+  rpy: [0.136,-0.052,-0.016]
+  std: [0.0001,0.0001,0.0006]
+
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/out/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/nominal/'
   fig_svg: true
 
-info: "Sion Legacy - 4 flight lines "
+info: "Sion Legacy - 4 flight lines || Point to point posteriori residuals: Skaloud 2006 boresight -> 0.16 meter - New appreoach -> 0.15 meter || Plane to plane posteriori residuals: Skaloud 2006 boresight -> 0.04 mter - New Approach -> 0.04 meter"

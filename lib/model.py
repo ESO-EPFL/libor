@@ -1,4 +1,3 @@
-import glob
 from scipy.linalg import cho_factor, cho_solve
 import numpy as np
 
@@ -6,14 +5,63 @@ from lib.rotations import *
 
 import logging
 logger = logging.getLogger("Libor")
+
 def corrLoader(cfg):
-    pathList = glob.glob(cfg['p2p_folder'] + '/*.*')
-    nPerFile = cfg['n'] // len(pathList)
-    correspondences = np.vstack([np.loadtxt(pathList[i], delimiter=',')[np.random.choice(np.arange(len(np.loadtxt(pathList[i], delimiter=','))), nPerFile, replace=False)] for i in range(len(pathList))])
-    logger.info(f"Loaded {len(correspondences)} correspondences from {len(pathList)} files.")
-    min_time = np.min(np.min(correspondences[:,0])), np.min(correspondences[:,1])
-    max_time = np.max(np.max(correspondences[:,0])), np.max(correspondences[:,1])
-    logger.info(f"Correspondence time span: [{min_time[0]:.3f}, {max_time[0]:.3f}] s (i), [{min_time[1]:.3f}, {max_time[1]:.3f}] s (j)")
+    logger.info(f"Sampling strategy: {cfg['sampling']['strategy']}")
+
+    correspondences = []
+
+    if cfg['sampling']['strategy'] == 'freq':
+        logger.info("Shuffling correspondences by regular time interval")
+        logger.info(f"dt = {1/cfg['sampling']['value']:.3f} s")
+        dt = 1/cfg['sampling']['value']
+        
+        for i in range(len(cfg["file_paths"])):
+            corres_i = np.loadtxt(cfg["file_paths"][i], delimiter=',')
+            corres_i = corres_i[np.argsort(corres_i[:,0])]
+            t_int = [corres_i[0,0], corres_i[-1,0]]
+
+            time = np.arange(t_int[0], t_int[1], dt)
+            indexes = np.empty(len(time), dtype=int)
+            for j in range(len(time)):
+                indexes[j] = np.argmin(np.abs(corres_i[:,0] - time[j]))
+            
+            corres_i = corres_i[np.unique(indexes)]
+            logger.info(f"Effective mean sampling rate for {cfg['file_paths'][i].split('/')[-1]}: {np.median(np.diff(corres_i[:,0])):.3f} s")   
+            correspondences.append(corres_i)    
+        correspondences = np.vstack(correspondences) 
+
+    elif cfg['sampling']['strategy'] == 'time_window':
+        logger.info("Shuffling correspondences by regular time window")
+        logger.info(f"Time window = {cfg['sampling']['value']} s")
+        
+        for i in range(len(cfg["file_paths"])):
+            corres_i = np.loadtxt(cfg["file_paths"][i], delimiter=',')
+            corres_i = corres_i[np.argsort(corres_i[:,0])]
+            mean_t = np.mean(corres_i[:,0])
+
+            t_start = mean_t - cfg['sampling']['value']/2
+            t_end = mean_t + cfg['sampling']['value']/2
+
+            corres_i = corres_i[(corres_i[:,0] >= t_start) & (corres_i[:,0] <= t_end)]
+            if corres_i.shape[0] > cfg['sampling']['max_per_file']:
+                corres_i = corres_i[np.random.choice(np.arange(corres_i.shape[0]), cfg['sampling']['max_per_file'], replace=False)]
+            logger.info(f"Effective time window for {cfg['file_paths'][i].split('/')[-1]}: {corres_i[0,0]:.3f} s to {corres_i[-1,0]:.3f} s")   
+            correspondences.append(corres_i)    
+
+        correspondences = np.vstack(correspondences)
+            
+    elif cfg['sampling']['strategy'] == 'max':
+        nPerFile = cfg['sampling']['value']// len(cfg["file_paths"])
+        logger.info("Shuffling correspondences by max count per file")
+        logger.info(f"Keeping {nPerFile} correspondences per file")
+        correspondences = np.vstack([np.loadtxt(cfg["file_paths"][i], delimiter=',')[np.random.choice(np.arange(len(np.loadtxt(cfg["file_paths"][i], delimiter=','))),
+                                                                                            nPerFile,
+                                                                                            replace=False)] for i in range(len(cfg["file_paths"]))])
+    else:
+        logger.info("No valid sampling strategy specified, loading all correspondences")
+        correspondences = np.vstack([np.loadtxt(cfg["file_paths"][i], delimiter=',') for i in range(len(cfg["file_paths"]))])
+    logger.info(f"Loaded {len(correspondences)} correspondences from {len(cfg['file_paths'])} files.")
     return correspondences
 
 class Correspondence:   

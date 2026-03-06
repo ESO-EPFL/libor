@@ -2,14 +2,14 @@
 prj_name: 'HAR_4'
 trj: "/media/topo/Data/Data/ALS/HelimapArpette/01_TRJ/04_IE/SBET.OUT"
 
-p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/arpette/full_nobor/"
+p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/arpette/full_wrongbor"
 
 t_span: [289000.0, 294150.0] #time in trj and p2p reference 
 
 mount:
   leverArm: [[0.0], [0.0], [0.15]] #m
   R_s2b: [[0, 1, 0], [0, 0, 1], [1, 0, 0]]
-  initBor: [[0.0], [0.0], [0.0]] #degrees rpy
+  initBor: [[5.0], [5.0], [5.0]] #degrees rpy
 
 tp_latlon: [46.0, 7.0] #decimal degrees
 
@@ -24,7 +24,7 @@ sigmas:  # meters and degrees
   z:  0.03
   rp: 0.003
   y:  0.005
-  p2p: 0.1
+  p2p: 0.25
 
 riprocess:
   rpy: [0.135,0.016,0.253]
@@ -38,7 +38,7 @@ dn:
   std: [0.0001,0.0001,0.0006]
 
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/out/nominal/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/wrongbor/'
   fig_svg: true
 
-info: "Arpette - 4 flight lines"
+info: "Arpette - 4 flight lines wrong bor (5° per axis)"

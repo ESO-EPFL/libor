@@ -12,7 +12,9 @@ mount:
 
 tp_latlon: [47.4, 9.7] #decimal degrees
 
-n: 5000 #num cor used in adj.
+sampling:
+  strategy: 'max'
+  value: 4000
 
 refBor: [[-0.036], [-0.010],  [0.226]] #v111 
 
@@ -23,8 +25,12 @@ sigmas:  # meters and degrees
   y:  0.008
   p2p: 0.075 # per axis!
 
+dn:
+  rpy: [-0.037,-0.006,0.223]
+  std: [0.000381,0.000174,0.0011871]
+
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/out/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/nominal/'
   fig_svg: true
 
 info: "Heerbrugg - 2 flight lines"

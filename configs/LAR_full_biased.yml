@@ -1,0 +1,33 @@
+prj_name: 'LAR_3_biased'
+trj: "/media/topo/Data/Data/ALS/libor/in/trj/biased/r-005_p-001_y-02_SBET_MILF18_200HZ_aclens.out"
+
+p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/aclens/full_biased/"
+
+t_span: [396500.0, 398000.0]
+
+mount:
+  leverArm: [[-0.042], [0.183], [-0.021]] #m
+  R_s2b: [[0, -1, 0], [0, 0, -1], [1, 0, 0]]
+  initBor: [[-0.0], [0.0], [0.0]] #degrees rpy
+
+tp_latlon: [46.5, 6.5] #decimal degrees
+
+sampling:
+  strategy: 'max'
+  value: 2000
+
+refBor: [[-0.162], [0.113], [0.393]] # orig. calib.
+
+sigmas: # meters and degrees
+  xy: 0.01 
+  z:  0.03
+  rp: 0.003
+  y:  0.005
+  p2p: 0.1
+
+output:
+  folder: '/media/topo/Data/Data/ALS/libor/out/bias/'
+  fig_svg: true
+
+info: "Aclens - 3 flight lines (cross pattern) with biased trajectory.\n Bias values r,p,y (°): [-0.05, -0.01, -0.2]"
+

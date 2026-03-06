@@ -12,8 +12,9 @@ mount:
 
 tp_latlon: [46.24, 7.37] #decimal degrees
 
-n: 500 #num cor used in adj.
-
+sampling:
+  strategy: 'max'
+  value: 500
 refBor: [[0.139], [-0.060], [-0.057]]  # plane to plane libor
 
 sigmas:  # meters and degrees
@@ -23,8 +24,19 @@ sigmas:  # meters and degrees
   y:  0.01
   p2p: 0.1
 
+riprocess:
+  rpy: [0.136, -0.071, 0.007]
+  std: [0.0066,0.0035,0.0287]
+  plane_num: 16
+  p_sig_prio: 0.17
+  p_sig_post: 0.02
+
+dn:
+  rpy: [0.141,-0.057,-0.030]
+  std: [0.0022,0.0006,0.0007]
+
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/out/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/nominal/'
   fig_svg: true
 
-info: "Sion Legacy - 2 flight lines (parallel) "
+info: "Sion Legacy - 2 flight lines (cross, different height -> Relatively high observability depsite using only 2 fl) "

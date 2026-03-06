@@ -1,22 +1,22 @@
-prj_name: 'LAR_3'
+prj_name: 'LAR_3_refined'
 trj: "/media/topo/Data/Data/ALS/libor/in/trj/SBET_MILF18_200HZ_aclens.out"
 
-p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/aclens/full_nobor/"
+p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/aclens/full_wrongbor/"
 
 t_span: [396500.0, 398000.0]
 
 mount:
   leverArm: [[-0.042], [0.183], [-0.021]] #m
   R_s2b: [[0, -1, 0], [0, 0, -1], [1, 0, 0]]
-  initBor: [[-0.0], [0.0], [0.0]] #degrees rpy
+  initBor: [[5.0], [5.0], [5.0]] #degrees rpy
 
 tp_latlon: [46.5, 6.5] #decimal degrees
 
 sampling:
   strategy: 'max'
-  value: 5000
+  value: 1000
 
-refBor: [[-0.212], [0.100], [0.191]] # orig. calib.
+refBor: [[-0.212], [0.103], [0.194]] # orig. calib.
 
 sigmas: # meters and degrees
   xy: 0.01 
@@ -24,7 +24,6 @@ sigmas: # meters and degrees
   rp: 0.003
   y:  0.005
   p2p: 0.1
-
 
 riprocess:
   rpy: [-0.197,0.097,0.197]
@@ -38,8 +37,8 @@ dn:
   std: [0.0009,0.0003,0.0003]
 
 output:
-  folder: '/media/topo/Data/Data/ALS/libor/out/nominal/'
+  folder: '/media/topo/Data/Data/ALS/libor/out/wrongbor/'
   fig_svg: true
 
-info: "Aclens - 3 flight lines (cross pattern)"
+info: "Aclens - 3 flight lines, wrong 5° in r,p,y boresight applied in libor. Refence is libor P without wrong boresight input"
 
