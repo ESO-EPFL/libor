@@ -1,5 +1,5 @@
 # Libor configuration file
-prj_name: 'HAR_4_001s'
+prj_name: 'HAR_4_90s'
 trj: "/media/topo/Data/Data/ALS/HelimapArpette/01_TRJ/04_IE/SBET.OUT"
 
 p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/arpette/full_nobor/"
@@ -15,8 +15,8 @@ tp_latlon: [46.0, 7.0] #decimal degrees
 
 sampling:
   strategy: 'time_window'
-  value: 0.01
-  max_per_file: 3000
+  value: 90.
+  max_per_file: 5000
 
 refBor: [[0.206], [0.025], [0.352]] # orig. calib.
 
@@ -35,4 +35,4 @@ output:
   folder: '/media/topo/Data/Data/ALS/libor/out/time_interval/'
   fig_svg: true
 
-info: "Arpette - 4 flight lines, p2p time time_window 0.01s"
+info: "Arpette - 4 flight lines, p2p time time_window 90"

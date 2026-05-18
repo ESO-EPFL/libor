@@ -1,9 +1,9 @@
 # Libor configuration file
-prj_name: 'HAL_2'
+prj_name: 'HAL_2_raycasting_sector2'
 trj: "/media/topo/Data/Data/ALS/Hilbert/01_ODyN/in/reference.out"
-p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/heerbrugg/2fl/"
+p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/heerbrugg/raycasting/2fl_sector2/"
 
-t_span: [478000.0, 480500.0] #must englobe p2p timestamps
+t_span: [478000.0, 482000.0] #must englobe p2p timestamps
 
 mount:
   leverArm: [[0.0], [0.0], [0.231]] #m
@@ -14,23 +14,23 @@ tp_latlon: [47.4, 9.7] #decimal degrees
 
 sampling:
   strategy: 'max'
-  value: 4000
+  value: 2000
 
-refBor: [[-0.036], [-0.010],  [0.226]] #v111 
+refBor: [[0.010], [0.036],  [0.226]] #v111 
 
 sigmas:  # meters and degrees
   xy: 0.03
   z:  0.03
   rp: 0.005
   y:  0.008
-  p2p: 0.075 # per axis!
+  p2p: 0.1 # per axis!
 
 dn:
-  rpy: [-0.037,-0.006,0.223]
+  rpy: [0.006, 0.037, 0.223]
   std: [0.000381,0.000174,0.0011871]
 
 output:
   folder: '/media/topo/Data/Data/ALS/libor/out/nominal/'
   fig_svg: true
 
-info: "Heerbrugg - 2 flight lines"
+info: "Heerbrugg - 2 flight lines with computed laser vectors"

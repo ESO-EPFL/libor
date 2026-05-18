@@ -103,10 +103,10 @@ def main():
     logger.info("")
     logger.info(f"=== Marginalisation ===")
 
-    model.marginalise(factor=2.0)
+    model.marginalise(factor=4.0)
 
     logger.info(f"Mean residual = {np.mean(model.adjustedResiduals):.3f} m")
-    logger.info(f"Threshold = {model.thr:.3f} m ({2.0}× median)")
+    logger.info(f"Threshold = {model.thr:.3f} m ({4.0}× median)")
     logger.info(f"Removing {model.n_out_frac[0]}/{model.n_out_frac[1]} correspondences")
     logger.info(f"Refined boresight: {np.rad2deg(model.theta.flatten())} °")
     logger.info(f"Final diff. from reference: {(np.rad2deg(model.theta) - cfg['refBor']).flatten()} °")

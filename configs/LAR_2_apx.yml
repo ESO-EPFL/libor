@@ -1,0 +1,45 @@
+prj_name: 'LAR_2_apx'
+trj: "/media/topo/Data/Data/ALS/libor/in/trj/SBET_02_GNSS_INS_APX_fromDN.out"
+
+p2p_folder: "/media/topo/Data/Data/ALS/libor/in/p2p/aclens/2fl_apx/"
+
+t_span: [396500.0, 398000.0]
+
+mount:
+  leverArm: [[-0.042], [0.183], [-0.021]] #m
+  R_s2b: [[0, -1, 0], [0, 0, -1], [1, 0, 0]]
+  initBor: [[0.0], [0.0], [0.0]] #degrees rpy
+
+tp_latlon: [46.5, 6.5] #decimal degrees
+
+sampling:
+  strategy: 'max'
+  value: 3000
+
+refBor: [[-0.212], [0.100], [0.191]] # orig. calib.
+
+sigmas: # meters and degrees
+  xy: 0.01 
+  z:  0.03
+  rp: 0.025
+  y:  0.080
+  p2p: 0.1
+
+
+riprocess:
+  rpy: [-0.158,0.097,0.313]
+  std: [0.0046,0.0034,0.011]
+  plane_num: 242
+  p_sig_prio: 0.24
+  p_sig_post: 0.084
+
+dn:
+  rpy: [-0.238,0.083,0.281]
+  std: [0.025,0.004,0.005]
+
+output:
+  folder: '/media/topo/Data/Data/ALS/libor/out/nominal/'
+  fig_svg: true
+
+info: "Aclens - 2 flight lines (cross pattern) - APX 15"
+

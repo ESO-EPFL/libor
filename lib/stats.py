@@ -140,7 +140,7 @@ class CalibrationStats:
             spine.set_linewidth(0.5)
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        max_range = 0.075
+        max_range = 0.2
         cfg = self.cfg
 
         theta = self.data["theta_deg"]
