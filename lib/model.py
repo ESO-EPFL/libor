@@ -365,10 +365,10 @@ class Model:
             B_k = self.corSet[k].B              # (3,12)
             A_k = self.corSet[k].A              # (3,3)
 
-            self.J_obs += float(v_k.T @ Pk @ v_k)
+            self.J_obs  += float((v_k.T @ Pk @ v_k).item())
 
             r_k = (A_k @ delta) + (B_k @ v_k) + w_k 
-            self.J_cond += float(r_k.T @ Wk @ r_k)
+            self.J_cond += float((r_k.T @ Wk @ r_k).item())
         sigma0_sq = (self.J_obs + self.J_cond) / r
         sigma0 = np.sqrt(sigma0_sq)
 
@@ -405,6 +405,43 @@ class Model:
         self.theta_refined = self.solve(max_iter=1)      
         self.adjustedResiduals = np.linalg.norm(np.hstack([c.w for c in self.corSet]), axis=0)   
  
+    def computeMapDensity(self, planimetric=True):
+        """
+        Characterise the spatial density of correspondences in the mapping frame.
+
+        For each correspondence we take the mid-point of the matched pair (p_i, p_j)
+        in the mapping frame and measure the Euclidean distance to its nearest
+        neighbour among all other correspondences. This converts the temporal
+        sampling rate into an interpretable on-map spacing.
+
+        planimetric : if True, use horizontal (E-N) distance only -> footprint
+                    density; if False, full 3D spacing.
+        """
+        from scipy.spatial import cKDTree
+
+        # one representative map-frame point per correspondence
+        pts = np.array([(0.5 * (c.p_i + c.p_j)).flatten() for c in self.corSet])
+        if planimetric:
+            pts = pts[:, :2]   # mapping frame is ENU -> keep East, North
+
+        tree = cKDTree(pts)
+        dists, _ = tree.query(pts, k=2)   # col 0 is self (d=0), col 1 is true NN
+        nn = dists[:, 1]
+
+        self.mapDensity = {
+            "nn_mean":   float(np.mean(nn)),
+            "nn_median": float(np.median(nn)),
+            "nn_std":    float(np.std(nn)),
+            "nn_min":    float(np.min(nn)),
+            "nn_max":    float(np.max(nn)),
+        }
+
+        logger.info(
+            f"Map-frame NN spacing ({'2D' if planimetric else '3D'}): "
+            f"mean={self.mapDensity['nn_mean']:.2f} m, "
+            f"median={self.mapDensity['nn_median']:.2f} m "
+            f"(n={len(self.corSet)})"
+        )
     
     def estimateObservability(self):
 

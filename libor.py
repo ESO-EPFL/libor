@@ -82,7 +82,8 @@ def main():
     t_0 = time.time()
     model = Model(correspondences, trajectory, cfg, tangentPlane.R_ecef2enu)
 
-    logger.info("")
+    model.computeMapDensity(planimetric=False)
+
     logger.info("=== Solving ... ===")
 
     theta_hat = model.solve(max_iter=5, tol=1e-9)
@@ -103,7 +104,7 @@ def main():
     logger.info("")
     logger.info(f"=== Marginalisation ===")
 
-    model.marginalise(factor=4.0)
+    model.marginalise(factor=3.0)
 
     logger.info(f"Mean residual = {np.mean(model.adjustedResiduals):.3f} m")
     logger.info(f"Threshold = {model.thr:.3f} m ({4.0}× median)")

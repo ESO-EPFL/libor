@@ -366,7 +366,7 @@ class CalibrationStats:
                 f"{self.cfg['prj_name']}_corr_matrix.svg"
                 )
 
-        fig.savefig(svg_path, bbox_inches="tight")
+            fig.savefig(svg_path, bbox_inches="tight")
 
 
         buf = io.BytesIO()

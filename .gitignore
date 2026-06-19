@@ -204,3 +204,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Libor — user-specific configs and run artifacts (not for the public repo)
+configs/custom/
+out/
+data/unzipped/
+data/p2p/

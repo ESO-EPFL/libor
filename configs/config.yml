@@ -1,0 +1,43 @@
+# ============================================================================
+# Libor — example configuration
+# Runs out of the box on the bundled sample data (LAR / Aclens flight).
+#
+#   1. unzip data/data.zip          (see README "Quickstart")
+#   2. python libor.py -c configs/config.yml
+#
+# Copy this file to configs/custom/ (git-ignored) and adapt the paths to
+# calibrate your own datasets.
+# ============================================================================
+
+prj_name: 'example_LAR'
+
+trj: "data/unzipped/SBET_MILF18_200HZ.out"   # Applanix SBET trajectory
+p2p_folder: "data/p2p/"                       # folder of LiMatch correspondences
+
+t_span: [396500.0, 398000.0]                  # GPS seconds-of-week window
+
+mount:
+  leverArm: [[-0.042], [0.183], [-0.021]]     # sensor->body lever arm (m)
+  R_s2b: [[0, -1, 0], [0, 0, -1], [1, 0, 0]]  # sensor->body rotation
+  initBor: [[0.0], [0.0], [0.0]]              # initial boresight (deg, roll/pitch/yaw)
+
+tp_latlon: [46.5, 6.5]                        # tangent-plane origin (decimal degrees)
+
+sampling:
+  strategy: 'max'                             # 'max' | 'freq' | 'time_window' | (else: all)
+  value: 5000
+
+refBor: [[-0.212], [0.100], [0.191]]          # reference calibration for comparison (deg)
+
+sigmas:                                        # observation std-devs (meters and degrees)
+  xy: 0.01
+  z:  0.03
+  rp: 0.003
+  y:  0.005
+  p2p: 0.1                                     # ~ 0.5 x GSD
+
+output:
+  folder: 'out/'
+  fig_svg: true
+
+info: "Example run on the bundled LAR (Aclens) sample data."
