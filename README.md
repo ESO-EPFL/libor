@@ -6,8 +6,8 @@
 **point-to-point correspondences**. It estimates the boresight misalignment angles
 between an airborne laser scanner and its inertial navigation system using a
 **Gauss–Helmert (GH) adjustment** that takes the post-processed INS/GNSS trajectory as
-observations — no planar surfaces, no special calibration flight patterns, and no
-dedicated calibration site required.
+observations without requiring planar surfaces, special calibration flight patterns, nor
+dedicated calibration site.
 
 The correspondences are extracted with [**LiMatch**](https://doi.org/10.1016/j.isprsjprs.2025.08.011)
 (Brun et al., 2025) directly from overlapping flight strips, which makes the approach
@@ -19,56 +19,23 @@ This repository accompanies the paper:
 > **Scene-agnostic ALS boresight self-calibration**
 > A. Brun and J. Skaloud, Environmental Sensing and Observation Laboratory (ESO),
 > EPFL. *Preprint, 2026.*
-> 📄 arXiv: _[link to be added on posting]_
+> 📄 arXiv: _[link to be added]_
 
 Libor implements the **lightweight GH** formulation. The rigorous **Dynamic Network (DN)**
-companion described in the paper — which estimates boresight jointly with the full
-trajectory and inertial errors — is run through the [ODyN](https://odyn.epfl.ch)
+companion described in the paper, which estimates boresight jointly with the full
+trajectory and inertial errors, is run through the [ODyN](https://odyn.epfl.ch)
 factor-graph solver and is not part of this repository.
-
----
-
-## Method in brief
-
-For each point-to-point correspondence `k` between two overlapping strips, a laser point
-must reconstruct to the same map coordinate from either observation:
-
-```
-p_k^m = n_k^m + R_b^m(ω_k) · ( u_k^b + U_k^b · θ + a^b )
-```
-
-where `θ = [α, β, γ]ᵀ` are the small boresight angles (the unknowns),
-`u_k^b = R_s2b · v_k^L` is the laser vector in the body frame,
-`U_k^b = skewT(u_k^b)`, `a^b` is the (fixed) sensor-to-body lever arm, and
-`R_b^m(ω_k)` is the body-to-mapping rotation built from the trajectory attitude.
-
-The misclosure between the two reconstructions of a correspondence drives a
-**Gauss–Helmert adjustment** in which the 12 navigation observations (position + roll,
-pitch, yaw at both epochs) carry prior weights, and `θ` is estimated. Per correspondence:
-
-| Block | Shape | Meaning |
-|-------|-------|---------|
-| `A` | 3×3   | Jacobian w.r.t. the boresight angles `θ` |
-| `B` | 3×12  | Jacobian w.r.t. the 12 navigation observations |
-| `w` | 3×1   | misclosure `p_i − p_j` |
-
-The system is solved iteratively via a per-correspondence **Schur complement** and
-Cholesky factorization. Libor then performs robust **outlier marginalisation**, computes
-the **a-posteriori variance factor `σ₀`** and parameter covariance, and runs an
-**observability analysis** (eigenvalues, condition number, parameter correlation matrix).
 
 ---
 
 ## Installation
 
-Libor requires Python ≥ 3.9 and a handful of scientific packages.
+Libor and its dependencies can be installed as follow:
 
 ```bash
 git clone https://github.com/ESO-EPFL/libor.git
 cd libor
 
-# (recommended) create a clean environment
-python -m venv .venv && source .venv/bin/activate
 
 pip install numpy scipy pyproj matplotlib reportlab cycler pyyaml
 ```
@@ -77,52 +44,41 @@ Tested with NumPy 1.x and 2.x.
 
 ---
 
-## Quickstart (bundled example)
+## Running the example
 
-A small example dataset (one ALS flight, the *LAR/Aclens* configuration) ships in
-`data/data.zip`: a smoothed Applanix trajectory and one LiMatch correspondence file.
+A small example dataset (one ALS flight) ships in `data/`: one smoothed trajectory and three LiMatch correspondence files. It can be run as follow:
 
 ```bash
-# 1. unpack the sample data
-mkdir -p data/unzipped data/p2p
-unzip data/data.zip -d data/unzipped
-cp data/unzipped/LiDAR_p2p.txt data/p2p/
-
-# 2. run the calibration
 python libor.py -c configs/config.yml
 ```
 
-Expected output (boresight recovered to a few hundredths of a degree, mean residual
-dropping from ~1.9 m to a few centimetres):
+Expected output (boresight recovered to a few thousands of a degree, mean residual
+dropping from 12 m to a few centimetres):
 
 ```
-=== Solution ===
-Reference boresight: [-0.212  0.1    0.191] °
-Estimated boresight: [-0.21   0.091  0.149] °
-Diff. from reference: [ 0.002 -0.009 -0.042] °
+| === Solution ===
+| Reference boresight: [0.206 0.025 0.352] °
+| Estimated boresight: [0.208 0.025 0.353] °
+| Diff. from reference: [0.002 0.    0.001] °
+| Mean residual = 0.181 m
+| Time elapsed: 7.86 seconds
+
 ...
-a-posteriori sigma0 ≈ unity
-Condition number: 1.2e+03
+| a-posteriori sigma0 ≈ unity
+| Condition number: 3.8e+01
 ```
 
-The run writes a log, three SVG figures, and a one-page **PDF calibration report** to the
-output folder (`out/` in the example).
+The run writes a log, three SVG figures, and a **PDF calibration report** to the
+output folder (`out/`).
 
-To calibrate your own data, copy `configs/config.yml` into `configs/custom/`
-(git-ignored) and adapt the paths and parameters:
-
-```bash
-mkdir -p configs/custom
-cp configs/config.yml configs/custom/my_flight.yml
-python libor.py -c configs/custom/my_flight.yml
-```
+To calibrate your own data, copy `configs/config.yml` and adapt the paths and parameters.
 
 ---
 
 ## Usage
 
 ```bash
-python libor.py --cfg path/to/config.yml      # or -c
+python libor.py --cfg path/to/config.yml
 ```
 
 Everything is driven by a single YAML configuration file. The pipeline:
@@ -137,45 +93,47 @@ Everything is driven by a single YAML configuration file. The pipeline:
 ### Configuration reference
 
 ```yaml
-prj_name: 'LAR_3'                 # run name (used for logs / outputs)
-trj: "path/to/SBET.out"           # Applanix SBET trajectory (17×float64)
-p2p_folder: "path/to/p2p/"        # folder of LiMatch correspondence files (*.*)
+# ============================================================================
+# Libor — example configuration
+# Runs out of the box on the bundled sample data.
+#
+#    python libor.py -c configs/config.yml
+#
+# ============================================================================
 
-t_span: [396500.0, 398000.0]      # GPS seconds-of-week window to use
+prj_name: 'example_Libor'
+
+trj: "data/trajectory.out"    # Path to trajectory (SBET format)
+p2p_folder: "data/Limatch/"                       # Path to Limatch correspondence folder
+
+t_span: [289800.0, 291000.0]                  # Trajectory GPS seconds-of-week window (avoid loading all trajectory)
 
 mount:
-  leverArm: [[-0.042], [0.183], [-0.021]]    # sensor→body lever arm (m)
-  R_s2b:    [[0, -1, 0], [0, 0, -1], [1, 0, 0]]  # sensor→body rotation
-  initBor:  [[0.0], [0.0], [0.0]]            # initial boresight (deg, roll/pitch/yaw)
+  leverArm: [[0.0], [0.0], [0.15]]    # Position of lidar sensor in body frame (m)
+  R_s2b: [[0, 1, 0], [0, 0, 1], [1, 0, 0]]  # Rotation sensor to body
+  initBor: [[0.0], [0.0], [0.0]]              # Initial boresight (deg, roll/pitch/yaw)
 
-tp_latlon: [46.5, 6.5]            # tangent-plane origin (decimal degrees)
+tp_latlon: [46., 7.]                        # Tangent-plane origin (decimal degrees), should be close to the correspondences
 
 sampling:
-  strategy: 'max'                 # 'max' | 'freq' | 'time_window' | (else: all)
-  value: 5000                     # see "Sampling strategies" below
+  strategy: 'max'                             # 'max' | 'freq' | 'time_window' | (else: all)
+  value: 5000
 
-refBor: [[-0.212], [0.100], [0.191]]   # reference calibration for comparison (deg)
+refBor: [[0.206], [0.025], [0.352]]          # reference calibration for comparison (deg)
 
-sigmas:                           # observation std-devs (meters and degrees)
-  xy: 0.01                        # horizontal position
-  z:  0.03                        # vertical position
-  rp: 0.003                       # roll / pitch
-  y:  0.005                       # yaw
-  p2p: 0.1                        # point-to-point constraint (≈ ½ × GSD)
-
-# --- optional baselines, only used for the comparison plot / report ---
-riprocess:                        # plane-based (RiPROCESS) reference
-  rpy: [-0.197, 0.097, 0.197]
-  std: [0.001, 0.001, 0.004]
-dn:                               # Dynamic Network solution (from ODyN)
-  rpy: [-0.207, 0.096, 0.189]
-  std: [0.0009, 0.0003, 0.0003]
+sigmas:                                        # observation std-devs (meters and degrees)
+  xy: 0.03
+  z:  0.05
+  rp: 0.003
+  y:  0.005
+  p2p: 0.15                                     # ~ 0.5 x GSD
 
 output:
   folder: 'out/'
-  fig_svg: true                   # also export figures as SVG
+  fig_svg: true
 
-info: "free-text description shown in the report"
+info: "Example run on sample data."
+
 ```
 
 ### Sampling strategies
@@ -220,15 +178,13 @@ vectors in the **sensor frame** at each epoch. This is the standard
 ```
 libor/
 ├── libor.py            # command-line entry point / pipeline orchestration
+├── config.yml          # ready-to-run example (bundled data)
 ├── lib/
 │   ├── map.py          # TangentPlane, Trajectory, Pose, loadSBET
 │   ├── model.py        # corrLoader, Correspondence, Model (Gauss–Helmert solver)
 │   ├── rotations.py    # rotation matrices, analytical derivatives, skew operators
 │   └── stats.py        # CalibrationStats: plots + PDF report
-├── configs/
-│   ├── config.yml      # ready-to-run example (bundled data)
-│   └── custom/         # your own configs go here (git-ignored)
-├── data/data.zip       # bundled LAR/Aclens example (trajectory + correspondences)
+├── data/               # bundled example (trajectory + correspondences)
 └── media/libor.png
 ```
 

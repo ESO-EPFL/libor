@@ -206,7 +206,7 @@ marimo/_lsp/
 __marimo__/
 
 # Libor — user-specific configs and run artifacts (not for the public repo)
-configs/custom/
+configs/
 out/
 data/unzipped/
 data/p2p/

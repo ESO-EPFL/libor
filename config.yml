@@ -1,0 +1,40 @@
+# ============================================================================
+# Libor — example configuration
+# Runs out of the box on the bundled sample data.
+#
+#    python libor.py -c configs/config.yml
+#
+# ============================================================================
+
+prj_name: 'example_Libor'
+
+trj: "data/trajectory.out"    # Path to trajectory (SBET format)
+p2p_folder: "data/Limatch/"                       # Path to Limatch correspondence folder
+
+t_span: [289800.0, 291000.0]                  # Trajectory GPS seconds-of-week window (avoid loading all trajectory)
+
+mount:
+  leverArm: [[0.0], [0.0], [0.15]]    # Position of lidar sensor in body frame (m)
+  R_s2b: [[0, 1, 0], [0, 0, 1], [1, 0, 0]]  # Rotation sensor to body
+  initBor: [[0.0], [0.0], [0.0]]              # Initial boresight (deg, roll/pitch/yaw)
+
+tp_latlon: [46., 7.]                        # Tangent-plane origin (decimal degrees), should be close to the correspondences
+
+sampling:
+  strategy: 'max'                             # 'max' | 'freq' | 'time_window' | (else: all)
+  value: 5000
+
+refBor: [[0.206], [0.025], [0.352]]          # reference calibration for comparison (deg)
+
+sigmas:                                        # observation std-devs (meters and degrees)
+  xy: 0.03
+  z:  0.05
+  rp: 0.003
+  y:  0.005
+  p2p: 0.15                                     # ~ 0.5 x GSD
+
+output:
+  folder: 'out/'
+  fig_svg: true
+
+info: "Example run on sample data."
